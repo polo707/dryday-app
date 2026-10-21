@@ -56,6 +56,7 @@
   - **Quiz:** "In a hurry? Answer only the 2 safety questions" (balanced plan); safety questions always asked.
   - **Diary/Progress:** diary options scroll into view (clear of the bottom bar); Bladder Diary stat; drinks in the weekly chart; "Diary started" milestone at 3 entries; "Getting up at night?" tips card with night-trip count.
   - **About, Privacy & Sources** (More): owner, how the program was written (and reviewer status), 8 linked sources, exactly what data is stored where, 30-day money-back guarantee and support email (same as the sales page).
+  - Second test round (no severity-3 issues left). Follow-ups applied: player shows "Part X of Y" (not "Set", to avoid confusion with the 3 daily sets); 10-second get-ready; plain-language menopause option and a line that DryDay covers urges too; how to unblock notifications (Android/iPhone); with a pain answer, the exercise lesson is folded under "for after a physical therapist clears you".
 
 ## Files in the Repository
 1. `README.md`

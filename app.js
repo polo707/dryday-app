@@ -1041,6 +1041,7 @@
           ${state.quizCompleted ? '<button type="button" class="secondary-btn" id="btn-cancel-quiz">Close</button>' : ''}
         </div>
         <h2 class="two-tone-heading" style="margin-top:8px;">Personalize Your<br /><span>Week 1 Plan</span></h2>
+        <p class="card-body-text" style="margin-bottom:10px;">DryDay helps with leaks when you cough, sneeze or lift, with sudden urges, or both. There are no wrong answers.</p>
         <button type="button" class="quiz-quick-btn" id="btn-quiz-quick">In a hurry? Answer only the 2 safety questions →</button>
 
         <form id="quiz-form">
@@ -1083,7 +1084,7 @@
           <div class="quiz-question-block quiz-optional">
             <span class="quiz-question-title">5. Menopause &amp; childbirth history:</span>
             <div class="quiz-options">
-              <label class="radio-card"><input type="radio" name="lifeStage" value="peri_post" checked /><span>In perimenopause or post-menopause (no recent birth)</span></label>
+              <label class="radio-card"><input type="radio" name="lifeStage" value="peri_post" checked /><span>Around or after menopause: periods changing or stopped (no recent birth)</span></label>
               <label class="radio-card"><input type="radio" name="lifeStage" value="postpartum_over6w" /><span>Gave birth more than 6 weeks ago</span></label>
               <label class="radio-card"><input type="radio" name="lifeStage" value="postpartum_under6w" /><span>Currently pregnant or gave birth less than 6 weeks ago</span></label>
             </div>
@@ -1248,9 +1249,14 @@
           ${POSE_ART[dayPoseKey(dayData)]}
           <figcaption>${POSE_CAPTIONS[dayPoseKey(dayData)]}</figcaption>
         </figure>
+        ${safetyGate() === 'tension' ? `
+        <details class="lesson-later">
+          <summary>Exercise lesson (for after a physical therapist clears you)</summary>
+          <div class="lesson-content">${dayData.lessonHtml}</div>
+        </details>` : `
         <div class="lesson-content">
           ${dayData.lessonHtml}
-        </div>
+        </div>`}
         <div class="disclaimer-box">
           <strong>${patternAdj.label}:</strong>
           <p style="margin-top:4px; font-size:0.94rem;">${patternAdj.summaryNote}</p>
@@ -1307,7 +1313,7 @@
         position: dayData.blocks[0].position,
         cue: 'Settle into a comfortable position. Breathe normally and keep your belly, buttocks and thighs relaxed.',
         phase: 'rest',
-        seconds: 5,
+        seconds: 10,
         blockIndex: 0,
         totalBlocks
       }
@@ -1441,7 +1447,7 @@
           ? 'Relaxation · no squeezing'
           : dayData.isMiniSet
           ? `Day ${dayData.day} · Short set`
-          : `Day ${dayData.day} · Set ${step.blockIndex} of ${step.totalBlocks}`;
+          : `Day ${dayData.day} · Part ${step.blockIndex} of ${step.totalBlocks}`;
       el('sp-position').textContent = step.position;
       const pk = poseKey(step.position) || currentPose;
       if (pk !== currentPose || !el('sp-pose').innerHTML) {
@@ -1682,6 +1688,8 @@
       btn.disabled = !relax && done >= 3;
       btn.textContent = relax ? 'Relaxation →' : done >= 3 ? 'All 3 done ✓' : 'Short set →';
     }
+    const footLabel = document.getElementById('practice-foot-label');
+    if (footLabel) footLabel.textContent = typeof safetyGate === 'function' && safetyGate() === 'tension' ? 'Relaxation is safe every day' : 'Keep going for at least 3 months';
     if (text && typeof safetyGate === 'function' && safetyGate() === 'tension') {
       text.textContent = 'Squeezing exercises are paused until a pelvic floor physical therapist says they are right for you. Meanwhile, the 2-minute relaxation routine is safe to do every day.';
       return;
@@ -2471,7 +2479,9 @@
       if (pushOn()) status.textContent = `On: phone notifications at ${state.settings.reminderTimes.map(formatTime).join(', ')}.`;
       else if (state.settings.reminderEnabled && support === 'ok') status.textContent = `On inside the app at ${state.settings.reminderTimes.map(formatTime).join(', ')}. Phone notifications aren\u2019t on yet.`;
       else if (support === 'ios-install') status.textContent = 'On iPhone, add DryDay to your Home Screen first to get notifications.';
-      else if (support === 'denied') status.textContent = 'Notifications are blocked in your settings. Reminders will only show inside the app.';
+      else if (support === 'denied') status.textContent = isIOS()
+        ? 'Notifications are blocked. To allow them: iPhone Settings → Notifications → DryDay → Allow Notifications. Until then, reminders only show inside the app.'
+        : 'Notifications are blocked. To allow them: tap the icon left of the web address (or Chrome menu ⋮ → Site settings) → Notifications → Allow. Until then, reminders only show inside the app.';
       else if (support === 'unsupported') status.textContent = 'This browser can’t show notifications. Reminders will only show inside the app.';
       else status.textContent = '';
     }
