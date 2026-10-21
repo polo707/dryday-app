@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>DryDay — Daily Bladder Control Program</title>
+
+  <!-- Home Screen & PWA Meta Tags -->
+  <meta name="theme-color" content="#7A1F3D" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="DryDay" />
+  <meta name="description" content="DryDay: A guided daily pelvic floor and bladder habits program for women 40+." />
+
+  <!-- Google Fonts: Fraunces (Headings) & Inter (Body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-frame" id="app-root">
+
+    <!-- ==========================================
+         GATE 1: ACCESS CODE SCREEN (First Launch)
+         ========================================== -->
+    <section id="screen-access" class="gate-screen" aria-labelledby="access-title">
+      <div class="gate-hero-card">
+        <div class="brand-badge">
+          <span class="brand-icon" aria-hidden="true">♥</span>
+          <span class="brand-name">DryDay</span>
+        </div>
+
+        <h1 id="access-title" class="hero-heading">
+          Your Daily Confidence<br />
+          Starts <span class="accent-light">Today</span>
+        </h1>
+
+        <p class="hero-subtitle">
+          A gentle, evidence-based 8-week pelvic floor and bladder habits program designed for women 40+.
+        </p>
+
+        <form id="access-form" class="access-form" novalidate>
+          <label for="access-code-input" class="input-label">Enter your member access code</label>
+          <input
+            type="text"
+            id="access-code-input"
+            class="text-input"
+            placeholder="e.g. DRYDAY2026"
+            autocomplete="off"
+            autocapitalize="characters"
+            spellcheck="false"
+            required
+          />
+          <p id="access-error" class="error-message" role="alert" hidden>
+            That code didn't match. Please enter <strong>DRYDAY2026</strong> to continue.
+          </p>
+
+          <button type="submit" class="cta-pill-btn">
+            <span>Unlock Program</span>
+            <span class="cta-circle-icon" aria-hidden="true">→</span>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         GATE 2: MEDICAL DISCLAIMER SCREEN
+         ========================================== -->
+    <section id="screen-disclaimer" class="gate-screen" aria-labelledby="disclaimer-title" hidden>
+      <div class="content-card disclaimer-card">
+        <div class="card-pill-tag">Before We Begin</div>
+        <h1 id="disclaimer-title" class="two-tone-heading">
+          Important Health<br />
+          <span>Information</span>
+        </h1>
+
+        <div class="disclaimer-box">
+          <p>
+            DryDay is an educational exercise and habits program. It is not medical advice, diagnosis or treatment. If you have pain, blood in your urine, fever, frequent infections, a feeling of heaviness, or any concern, please talk to your doctor or a pelvic floor physical therapist.
+          </p>
+        </div>
+
+        <ul class="safety-checklist">
+          <li>All exercises use gentle, beginner-safe hold times.</li>
+          <li>Never hold your breath or push downward during exercises.</li>
+          <li>Stop any exercise if you feel pain or discomfort.</li>
+        </ul>
+
+        <button type="button" id="btn-accept-disclaimer" class="primary-btn full-width">
+          I Understand &amp; Continue
+        </button>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         MAIN APPLICATION SHELL
+         ========================================== -->
+    <div id="app-shell" class="app-shell" hidden>
+      <!-- Top Bar (Visible on all main tabs) -->
+      <header class="top-bar">
+        <div class="greeting-group">
+          <span class="greeting-eyebrow" id="greeting-text">Good Morning,</span>
+          <strong class="greeting-title">Week 1 Member</strong>
+        </div>
+
+        <button
+          type="button"
+          id="btn-urge-sos-top"
+          class="sos-header-btn"
+          aria-label="Open 60-second Urge SOS routine"
+        >
+          <span class="sos-dot" aria-hidden="true"></span>
+          <span>Urge SOS</span>
+        </button>
+      </header>
+
+      <!-- MAIN SCROLLABLE AREA -->
+      <main id="main-content" class="main-content">
+
+        <!-- TAB 1: HOME / TODAY -->
+        <section id="view-home" class="tab-view" aria-labelledby="home-heading">
+          <h1 id="home-heading" class="two-tone-heading">
+            Today's Guided<br />
+            <span>Routine</span>
+          </h1>
+
+          <!-- Day Selector Pills (Days 1-7) -->
+          <div class="day-pills-row" role="tablist" aria-label="Week 1 Days" id="home-day-pills">
+            <button type="button" class="day-pill active" data-day="1" role="tab" aria-selected="true">Day 1</button>
+            <button type="button" class="day-pill" data-day="2" role="tab" aria-selected="false">Day 2</button>
+            <button type="button" class="day-pill" data-day="3" role="tab" aria-selected="false">Day 3</button>
+            <button type="button" class="day-pill" data-day="4" role="tab" aria-selected="false">Day 4</button>
+            <button type="button" class="day-pill" data-day="5" role="tab" aria-selected="false">Day 5</button>
+            <button type="button" class="day-pill" data-day="6" role="tab" aria-selected="false">Day 6</button>
+            <button type="button" class="day-pill" data-day="7" role="tab" aria-selected="false">Day 7</button>
+          </div>
+
+          <!-- Featured Primary Dark Card (Matches Reference Image) -->
+          <article class="featured-card" id="today-featured-card">
+            <div class="featured-card-top">
+              <div class="featured-icon-box" aria-hidden="true">♥</div>
+              <div class="featured-title-group">
+                <span class="featured-eyebrow" id="today-week-label">Week 1 · Day 1</span>
+                <h2 class="featured-title" id="today-title">Learn Your Pelvic Floor</h2>
+              </div>
+              <span class="featured-time-pill" id="today-duration">~5 min</span>
+            </div>
+
+            <p class="featured-description" id="today-summary">
+              Find the right muscles gently, avoid the 4 common mistakes, and learn why we never practice by stopping urine midstream.
+            </p>
+
+            <div class="featured-card-footer">
+              <div class="featured-meta">
+                <strong id="today-pattern-badge">Tailored Daily Plan</strong>
+                <span>1 short lesson + guided session</span>
+              </div>
+              <button
+                type="button"
+                id="btn-start-today"
+                class="circle-action-btn"
+                aria-label="Start today's guided routine"
+              >
+                →
+              </button>
+            </div>
+          </article>
+
+          <!-- Secondary White Cards (Matches Reference Image) -->
+          <article class="white-card">
+            <div class="white-card-header">
+              <div class="soft-icon-box" aria-hidden="true">✦</div>
+              <div class="white-card-title-wrap">
+                <h3>Today's Small Habit</h3>
+                <span class="time-badge">All Day</span>
+              </div>
+            </div>
+            <p class="card-body-text" id="today-habit-text">
+              Log your bathroom visits, drinks, and any urges in your Bladder Diary today to see your starting baseline.
+            </p>
+          </article>
+
+          <article class="white-card" id="home-quiz-card">
+            <div class="white-card-header">
+              <div class="soft-icon-box" aria-hidden="true">✓</div>
+              <div class="white-card-title-wrap">
+                <h3>Personalize Your Plan</h3>
+                <span class="time-badge">1 min</span>
+              </div>
+            </div>
+            <p class="card-body-text">
+              Take our 1-minute pattern check to tailor your Week 1 exercises for Stress, Urge, or Mixed leaks.
+            </p>
+            <div class="white-card-footer">
+              <span class="muted-label" id="home-pattern-status">Current pattern: Balanced Default</span>
+              <button type="button" class="inline-pill-btn" data-action="open-quiz">
+                Personalize →
+              </button>
+            </div>
+          </article>
+        </section>
+
+        <!-- TAB 2: PLAN (WEEK 1 OVERVIEW + WEEKS 2-8 ARCHITECTURE) -->
+        <section id="view-plan" class="tab-view" aria-labelledby="plan-heading" hidden>
+          <h1 id="plan-heading" class="two-tone-heading">
+            Your 8-Week<br />
+            <span>Program Plan</span>
+          </h1>
+
+          <div class="white-card">
+            <div class="status-row">
+              <strong>Week 1: Foundation &amp; Control</strong>
+              <span class="status-pill confirmed">Active Now</span>
+            </div>
+            <p class="card-body-text">
+              Days 1 to 7 focus on muscle awareness, gentle slow holds, quick reflexes ("The Knack"), and calming sudden urges.
+            </p>
+            <div id="plan-week1-list" class="plan-day-list">
+              <!-- Populated by app.js / program.js -->
+            </div>
+          </div>
+
+          <div class="white-card muted-card">
+            <div class="status-row">
+              <strong>Weeks 2–8: Progressive Strength</strong>
+              <span class="status-pill">Coming Next</span>
+            </div>
+            <p class="card-body-text">
+              Architecture ready for Weeks 2–8: gradual progression from 4-second holds toward 8–10 seconds, standing endurance, and bladder interval training.
+            </p>
+          </div>
+        </section>
+
+        <!-- TAB 3: PROGRESS & BLADDER DIARY -->
+        <section id="view-progress" class="tab-view" aria-labelledby="progress-heading" hidden>
+          <h1 id="progress-heading" class="two-tone-heading">
+            Your Progress &amp;<br />
+            <span>Bladder Diary</span>
+          </h1>
+
+          <div class="stats-grid">
+            <div class="white-card stat-card">
+              <span class="stat-label">Days Completed</span>
+              <strong class="stat-value" id="stat-days-done">0 / 7</strong>
+            </div>
+            <div class="white-card stat-card">
+              <span class="stat-label">Current Streak</span>
+              <strong class="stat-value" id="stat-streak">0 days</strong>
+            </div>
+          </div>
+
+          <div class="white-card" id="diary-container">
+            <h3>Quick 2-Tap Bladder Diary</h3>
+            <p class="card-body-text">
+              Full 2-tap logging and your Day 1–2 vs. Day 6–7 comparison chart will appear here as you log during Week 1.
+            </p>
+          </div>
+        </section>
+
+        <!-- TAB 4: MORE / SETTINGS -->
+        <section id="view-more" class="tab-view" aria-labelledby="more-heading" hidden>
+          <h1 id="more-heading" class="two-tone-heading">
+            Settings &amp;<br />
+            <span>Support</span>
+          </h1>
+
+          <div class="white-card settings-list-card">
+            <div class="setting-item">
+              <div>
+                <strong>Medical Disclaimer</strong>
+                <p class="muted-small">Read our educational program and red-flag safety notice.</p>
+              </div>
+              <button type="button" id="btn-show-disclaimer" class="secondary-btn">
+                Read Notice
+              </button>
+            </div>
+
+            <hr class="divider" />
+
+            <div class="setting-item">
+              <div>
+                <strong>Install on Your Phone</strong>
+                <p class="muted-small">
+                  On iPhone Safari: tap <strong>Share</strong> → <strong>Add to Home Screen</strong>. On Android Chrome: tap the <strong>menu (⋮)</strong> → <strong>Add to Home screen</strong>.
+                </p>
+              </div>
+            </div>
+
+            <hr class="divider" />
+
+            <div class="setting-item">
+              <div>
+                <strong>Reset App Data</strong>
+                <p class="muted-small">Clear your saved progress and diary entries on this device.</p>
+              </div>
+              <button type="button" id="btn-reset-data" class="danger-outline-btn">
+                Reset
+              </button>
+            </div>
+          </div>
+        </section>
+
+      </main>
+
+      <!-- DARK PILL-SHAPED BOTTOM NAVIGATION BAR (Matches Reference Image) -->
+      <nav class="bottom-pill-nav" aria-label="Primary Navigation">
+        <button type="button" class="nav-tab active" data-tab="home" aria-current="page">
+          <span class="nav-icon" aria-hidden="true">⌂</span>
+          <span class="nav-label">Home</span>
+        </button>
+        <button type="button" class="nav-tab" data-tab="plan">
+          <span class="nav-icon" aria-hidden="true">☷</span>
+          <span class="nav-label">Plan</span>
+        </button>
+        <button type="button" class="nav-tab" data-tab="progress">
+          <span class="nav-icon" aria-hidden="true">◔</span>
+          <span class="nav-label">Progress</span>
+        </button>
+        <button type="button" class="nav-tab" data-tab="more">
+          <span class="nav-icon" aria-hidden="true">⚙</span>
+          <span class="nav-label">More</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- MODAL FOR VIEWING DISCLAIMER ANYTIME FROM SETTINGS -->
+    <div id="modal-disclaimer" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-disclaimer-title" hidden>
+      <div class="modal-sheet">
+        <h2 id="modal-disclaimer-title" class="two-tone-heading">
+          Health &amp; Safety<br />
+          <span>Disclaimer</span>
+        </h2>
+        <div class="disclaimer-box">
+          <p>
+            DryDay is an educational exercise and habits program. It is not medical advice, diagnosis or treatment. If you have pain, blood in your urine, fever, frequent infections, a feeling of heaviness, or any concern, please talk to your doctor or a pelvic floor physical therapist.
+          </p>
+        </div>
+        <button type="button" id="btn-close-disclaimer-modal" class="primary-btn full-width">
+          Close
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="program.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
