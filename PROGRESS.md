@@ -3,15 +3,16 @@
 > **Recovery Instruction:** If the chat session is interrupted, give this repository (or this `PROGRESS.md` file) to a new chat session to resume from the last completed phase without restarting.
 
 ## Current Status
-- **Last Completed Phase:** PHASE 2 — APP SHELL AND DESIGN
-- **Next Phase:** PHASE 3 — QUIZ AND SAFETY SCREEN
+- **Last Completed Phase:** PHASE 3 — QUIZ AND SAFETY SCREEN
+- **Next Phase:** PHASE 4 — WEEK 1 CONTENT AND SESSION PLAYER
 
 ## Phases Checklist
 - [x] **Phase 0 — GitHub Setup:** `README.md` and `PROGRESS.md` created. Repository: `polo707/dryday-app`, published with GitHub Pages.
 - [x] **Phase 1 — Research:** `CONTENT_SOURCES.md` and validated Week 1 clinical plan completed (NICE NG123, NHS/Squeezy, POGP, Cochrane, AUA/SUFU, ACOG, Mayo Clinic, Cleveland Clinic, NIA/NIDDK, APTA, Johns Hopkins, CFA). Conservative beginner parameters: 3 s hold (Day 1) and 4 s hold (Days 2–7) with 6 s relax; 6–8 slow reps; 5–8 quick reps (1 s squeeze / 2 s relax); Days 1–3 lying or sitting, Day 4 all three positions; Urge SOS = 5 gentle quick squeezes + slow breathing (4 s in / 6 s out) + distraction for 60 s.
 - [x] **Phase 2 — App Shell and Design:** Built `index.html`, `styles.css`, and base `app.js` (palette `#7A1F3D`, `#C2557A`, `#F2A7C0`, `#FBF1F3`; Fraunces + Inter; body ≥17px; tap targets ≥48px; dark pill bottom nav; `DRYDAY2026` access gate; disclaimer screen + Settings modal; `try/catch` localStorage helper). Added placeholder `program.js` so the page loads without errors.
-- [ ] **Phase 3 — Quiz and Safety Screen** (the "Personalize →" button on Home is not wired yet)
-- [ ] **Phase 4 — Week 1 Content and Session Player** (fill `program.js`; wire "Start today" button and day pills to content)
+- [x] **Phase 3 — Quiz and Safety Screen:** `program.js` now holds the Week 1 curriculum (Days 1–7: title, summary, lesson, session parameters, habit). Home screen shows the selected day's content. Quiz modal (leak pattern Stress / Urge / Mixed + red-flag question) saves the pattern and shows a referral note if red flags are reported. Fixes: quiz styles added to `styles.css`; day pills stay in sync after reload.
+  - Known gaps for later: quiz is short (no frequency, age range, menopause or detailed red-flag list yet); quiz modal has no close button; red-flag note uses a browser alert instead of an in-app screen.
+- [ ] **Phase 4 — Week 1 Content and Session Player** (wire the "Start today" button to the lesson + guided session player using the `session` data in `program.js`)
 - [ ] **Phase 5 — Urge SOS, Diary, Progress, Settings** (the "Urge SOS" button in the header is not wired yet)
 - [ ] **Phase 6 — Test and Finish**
 
@@ -22,7 +23,7 @@
 4. `index.html`
 5. `styles.css`
 6. `app.js`
-7. `program.js` (placeholder)
+7. `program.js` (Week 1 curriculum)
 
 ## Key Decisions
 1. **Audience & accessibility:** Women 40+ (mainly 45–65) in the US. Body text ≥17px, tap targets ≥48px, 6th–8th grade reading level, warm tone, respects `prefers-reduced-motion`.

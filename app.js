@@ -1,7 +1,6 @@
 /**
- * DryDay — Main Application Controller (Phase 2 Shell)
- * Includes safe localStorage wrapper, first-launch gates (Access Code + Disclaimer),
- * and bottom pill navigation (Home, Plan, Progress, More).
+ * DryDay — Main Application Controller (Phase 3 Update)
+ * Adds Pattern Quiz, Red-Flag Safety Screening, and dynamic UI rendering.
  */
 
 (function () {
@@ -10,7 +9,6 @@
   const ACCESS_CODE_VALID = 'DRYDAY2026';
   const STORAGE_KEY = 'dryday_state_v1';
 
-  // Safe localStorage wrapper with in-memory fallback
   const StorageHelper = {
     memoryFallback: {},
     get() {
@@ -19,7 +17,6 @@
         if (!raw) return null;
         return JSON.parse(raw);
       } catch (err) {
-        console.warn('localStorage read unavailable, using memory fallback.', err);
         return this.memoryFallback[STORAGE_KEY] || null;
       }
     },
@@ -27,21 +24,17 @@
       try {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       } catch (err) {
-        console.warn('localStorage write unavailable, using memory fallback.', err);
         this.memoryFallback[STORAGE_KEY] = data;
       }
     },
     clear() {
       try {
         window.localStorage.removeItem(STORAGE_KEY);
-      } catch (err) {
-        console.warn('localStorage clear unavailable.', err);
-      }
+      } catch (err) {}
       delete this.memoryFallback[STORAGE_KEY];
     }
   };
 
-  // Default state
   function getDefaultState() {
     return {
       unlocked: false,
@@ -90,7 +83,6 @@
   const btnCloseDisclaimerModal = document.getElementById('btn-close-disclaimer-modal');
   const btnResetData = document.getElementById('btn-reset-data');
 
-  // Greeting based on time of day
   function updateGreeting() {
     const greetingEl = document.getElementById('greeting-text');
     if (!greetingEl) return;
@@ -104,7 +96,6 @@
     }
   }
 
-  // Route between First-Launch Gates and Main Shell
   function renderEntryFlow() {
     if (!state.unlocked) {
       screenAccess.hidden = false;
@@ -125,9 +116,10 @@
     appShell.hidden = false;
     updateGreeting();
     renderStats();
+    renderHomeDayContent();
+    renderQuizStatus();
   }
 
-  // Switch between Bottom Navigation Tabs (Home, Plan, Progress, More)
   function switchTab(targetTab) {
     Object.keys(tabViews).forEach((key) => {
       const isTarget = key === targetTab;
@@ -160,9 +152,112 @@
     }
   }
 
-  // Event Listeners
+  function renderQuizStatus() {
+    const statusEl = document.getElementById('home-pattern-status');
+    if (!statusEl) return;
+    if (!state.quizCompleted) {
+      statusEl.textContent = 'Current pattern: Balanced Default';
+    } else {
+      const patternNames = {
+        stress: 'Stress Incontinence',
+        urge: 'Urge Incontinence / OAB',
+        mixed: 'Mixed Incontinence'
+      };
+      statusEl.textContent = `Your pattern: ${patternNames[state.pattern] || 'Customized'}`;
+    }
+  }
+
+  function renderHomeDayContent() {
+    const dayData = PROGRAM.weeks[0].days.find(d => d.day === state.currentDay);
+    if (!dayData) return;
+
+    const weekLabel = document.getElementById('today-week-label');
+    const titleEl = document.getElementById('today-title');
+    const summaryEl = document.getElementById('today-summary');
+    const durationEl = document.getElementById('today-duration');
+    const habitTextEl = document.getElementById('today-habit-text');
+    const patternBadgeEl = document.getElementById('today-pattern-badge');
+
+    // Keep the day pills in sync with the saved day (e.g. after reloading the page)
+    document.querySelectorAll('#home-day-pills .day-pill').forEach((p) => {
+      const active = parseInt(p.getAttribute('data-day'), 10) === dayData.day;
+      p.classList.toggle('active', active);
+      p.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+
+    if (weekLabel) weekLabel.textContent = `Week 1 · Day ${dayData.day}`;
+    if (titleEl) titleEl.textContent = dayData.title;
+    if (summaryEl) summaryEl.textContent = dayData.summary;
+    if (durationEl) durationEl.textContent = dayData.duration;
+    if (habitTextEl) habitTextEl.textContent = dayData.habit;
+    if (patternBadgeEl) {
+      const pName = state.quizCompleted ? state.pattern.toUpperCase() : 'TAILORED';
+      patternBadgeEl.textContent = `${pName} PLAN · DAY ${dayData.day} OF 7`;
+    }
+  }
+
+  // Quiz Modal Generator
+  function openQuizModal() {
+    let modal = document.getElementById('modal-quiz');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'modal-quiz';
+      modal.className = 'modal-backdrop';
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+      modal.innerHTML = `
+        <div class="modal-sheet quiz-sheet">
+          <div class="card-pill-tag">1-Minute Assessment</div>
+          <h2 class="two-tone-heading">Find Your Bladder<br /><span>Pattern</span></h2>
+          <form id="quiz-form" class="quiz-form">
+            <div class="quiz-step" data-step="1">
+              <label class="input-label">1. When do leaks most often happen?</label>
+              <div class="quiz-options">
+                <label class="radio-label"><input type="radio" name="q_leak" value="stress" required> When coughing, sneezing, laughing, or exercising</label>
+                <label class="radio-label"><input type="radio" name="q_leak" value="urge"> With a sudden, overwhelming urge before reaching the bathroom</label>
+                <label class="radio-label"><input type="radio" name="q_leak" value="mixed"> Both sudden urges and physical activity</label>
+              </div>
+            </div>
+
+            <div class="quiz-step" data-step="2" style="margin-top:16px;">
+              <label class="input-label">2. Any clinical safety red flags (pain, blood, recent childbirth < 6 weeks)?</label>
+              <div class="quiz-options">
+                <label class="radio-label"><input type="radio" name="q_redflag" value="yes"> Yes (pain, burning, blood in urine, or recent childbirth)</label>
+                <label class="radio-label"><input type="radio" name="q_redflag" value="no" checked> No / None of these</label>
+              </div>
+            </div>
+
+            <button type="submit" class="primary-btn full-width" style="margin-top:20px;">
+              Get My Tailored Plan →
+            </button>
+          </form>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      modal.querySelector('#quiz-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const data = new FormData(e.target);
+        const leakVal = data.get('q_leak') || 'mixed';
+        const redFlagVal = data.get('q_redflag') === 'yes';
+
+        state.quizCompleted = true;
+        state.pattern = leakVal;
+        state.redFlagsDetected = redFlagVal;
+        saveState();
+
+        modal.remove();
+        renderQuizStatus();
+        renderHomeDayContent();
+
+        if (redFlagVal) {
+          alert('Note: Based on your answers, we recommend speaking with your doctor or pelvic floor physical therapist for an evaluation. You can still use DryDay educational exercises safely.');
+        }
+      });
+    }
+  }
+
   function bindEvents() {
-    // 1. Access Code Gate
     if (accessForm) {
       accessForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -179,7 +274,6 @@
       });
     }
 
-    // 2. First-Launch Disclaimer Acceptance
     if (btnAcceptDisclaimer) {
       btnAcceptDisclaimer.addEventListener('click', () => {
         state.disclaimerAccepted = true;
@@ -188,7 +282,6 @@
       });
     }
 
-    // 3. Bottom Pill Navigation
     navTabs.forEach((btn) => {
       btn.addEventListener('click', () => {
         const target = btn.getAttribute('data-tab');
@@ -196,7 +289,6 @@
       });
     });
 
-    // 4. Day Selector Pills on Home Screen
     const dayPills = document.querySelectorAll('#home-day-pills .day-pill');
     dayPills.forEach((pill) => {
       pill.addEventListener('click', () => {
@@ -210,14 +302,17 @@
           p.setAttribute('aria-selected', active ? 'true' : 'false');
         });
 
-        const weekLabel = document.getElementById('today-week-label');
-        if (weekLabel) {
-          weekLabel.textContent = `Week 1 · Day ${selectedDay}`;
-        }
+        renderHomeDayContent();
       });
     });
 
-    // 5. Settings: Open & Close Disclaimer Modal
+    // Quiz trigger buttons
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('[data-action="open-quiz"]')) {
+        openQuizModal();
+      }
+    });
+
     if (btnShowDisclaimer && modalDisclaimer) {
       btnShowDisclaimer.addEventListener('click', () => {
         modalDisclaimer.hidden = false;
@@ -230,7 +325,6 @@
       });
     }
 
-    // 6. Settings: Reset Data
     if (btnResetData) {
       btnResetData.addEventListener('click', () => {
         const confirmed = window.confirm(
@@ -245,7 +339,6 @@
     }
   }
 
-  // Initialize App
   document.addEventListener('DOMContentLoaded', () => {
     bindEvents();
     renderEntryFlow();

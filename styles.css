@@ -711,3 +711,54 @@ input:focus-visible {
     scroll-behavior: auto !important;
   }
 }
+
+/* =====================================================
+   QUIZ (Phase 3)
+   ===================================================== */
+.quiz-sheet {
+  max-height: 90dvh;
+  overflow-y: auto;
+}
+
+.quiz-form .input-label {
+  display: block;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+.quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 48px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 2px solid transparent;
+  border-radius: 16px;
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.radio-label input {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin-top: 2px;
+  accent-color: var(--primary-dark);
+}
+
+.radio-label:has(input:checked) {
+  border-color: var(--primary-dark);
+  background: #FFFFFF;
+}
