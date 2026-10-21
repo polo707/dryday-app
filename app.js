@@ -207,11 +207,130 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  // =====================================================
+  // VISUAL TRUST LAYER: position illustrations, trust card, optional photos
+  // =====================================================
+  const POSE_ART = {
+    lying: `<svg viewBox="0 0 200 110" class="pose-svg" role="img" aria-label="Lying on your back with knees bent">
+      <rect x="8" y="90" width="184" height="8" rx="4" class="pose-mat"/>
+      <ellipse cx="106" cy="78" rx="18" ry="14" class="pose-glow"/>
+      <circle cx="30" cy="72" r="12" class="pose-fill"/>
+      <path d="M50 78 Q78 74 106 80" class="pose-body"/>
+      <path d="M106 80 L134 48 L150 82" class="pose-limb"/>
+      <path d="M150 84 H166" class="pose-foot"/>
+      <path d="M60 86 Q80 89 98 88" class="pose-arm"/>
+      <path d="M100 62 V42 M93 49 L100 42 L107 49" class="pose-arrow"/>
+    </svg>`,
+    sitting: `<svg viewBox="0 0 200 110" class="pose-svg" role="img" aria-label="Sitting upright on a chair">
+      <path d="M30 101 H170" class="pose-floor"/>
+      <g class="pose-chair"><path d="M62 74 H116"/><path d="M62 74 V26"/><path d="M66 76 V101"/><path d="M112 76 V101"/></g>
+      <ellipse cx="86" cy="66" rx="16" ry="13" class="pose-glow"/>
+      <circle cx="84" cy="20" r="12" class="pose-fill"/>
+      <path d="M84 38 V62" class="pose-body"/>
+      <path d="M86 66 H124 L126 96" class="pose-limb"/>
+      <path d="M126 97 H140" class="pose-foot"/>
+      <path d="M86 44 Q94 58 110 62" class="pose-arm"/>
+      <path d="M152 66 V46 M145 53 L152 46 L159 53" class="pose-arrow"/>
+    </svg>`,
+    standing: `<svg viewBox="0 0 200 110" class="pose-svg" role="img" aria-label="Standing tall">
+      <path d="M44 103 H156" class="pose-floor"/>
+      <ellipse cx="100" cy="60" rx="16" ry="13" class="pose-glow"/>
+      <circle cx="100" cy="15" r="11" class="pose-fill"/>
+      <path d="M100 32 V56" class="pose-body"/>
+      <path d="M94 60 L92 98 M106 60 L108 98" class="pose-limb"/>
+      <path d="M90 36 L86 62 M110 36 L114 62" class="pose-arm"/>
+      <path d="M136 66 V46 M129 53 L136 46 L143 53" class="pose-arrow"/>
+    </svg>`
+  };
+
+
+  const POSE_CAPTIONS = {
+    lying: 'Lie on your back, knees bent, feet flat. Gently lift upward and inward.',
+    sitting: 'Sit tall on a firm chair, feet flat on the floor. Gently lift upward and inward.',
+    standing: 'Stand tall, feet hip-width apart. Gently lift upward and inward.'
+  };
+
+  /** 'Lying Down or Sitting' → 'lying'. Returns null for 'Relaxed' / 'Transition'. */
+  function poseKey(position) {
+    const p = String(position || '').toLowerCase();
+    const order = [['lying', p.indexOf('lying')], ['sitting', p.indexOf('sitting')], ['standing', p.indexOf('standing')]]
+      .filter(([, i]) => i >= 0)
+      .sort((a, b) => a[1] - b[1]);
+    return order.length ? order[0][0] : null;
+  }
+
+  function dayPoseKey(dayData) {
+    for (const b of dayData.blocks || []) {
+      const k = poseKey(b.position);
+      if (k) return k;
+    }
+    return 'sitting';
+  }
+
+  const icon = (name, cls = 'ico') => `<svg class="${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+
+  /*
+   * PROGRAM REVIEWER — leave as null until a REAL licensed pelvic floor physical therapist
+   * has reviewed the program and agreed (in writing) to be named. Never use a stock photo
+   * or an invented name here. Example once you have one:
+   * const REVIEWER = { name: 'Jane Smith', credentials: 'PT, DPT', role: 'Pelvic floor physical therapist', photo: 'images/reviewer.jpg' };
+   */
+  const REVIEWER = null;
+
+  /* Optional lifestyle photos (files in /images). Leave '' to hide. Never present them as customers. */
+  const PHOTOS = { access: '', home: '', done: '' };
+
+  function renderTrustCards() {
+    const home = document.getElementById('home-trust-card');
+    const plan = document.getElementById('plan-trust-card');
+    const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    if (REVIEWER && REVIEWER.name) {
+      const who = `${esc(REVIEWER.name)}${REVIEWER.credentials ? ', ' + esc(REVIEWER.credentials) : ''}`;
+      const avatar = REVIEWER.photo
+        ? `<img class="trust-avatar" src="${esc(REVIEWER.photo)}" alt="${esc(REVIEWER.name)}" />`
+        : `<span class="trust-icon">${icon('shield')}</span>`;
+      const html = `${avatar}<div class="trust-text"><strong>Program reviewed by ${who}</strong><p>${esc(REVIEWER.role || '')}${REVIEWER.role ? ' · ' : ''}Based on UK NICE guideline NG123</p></div>`;
+      if (home) home.innerHTML = html;
+      if (plan) plan.innerHTML = html;
+      return;
+    }
+    if (home) {
+      home.innerHTML = `<span class="trust-icon">${icon('shield')}</span><div class="trust-text"><strong>Built on clinical guidelines</strong><p>Exercise amounts follow the UK NICE guideline for pelvic floor training (NG123): at least 8 squeezes, 3 times a day, for at least 3 months.</p></div>`;
+    }
+    if (plan) {
+      plan.innerHTML = `<span class="trust-icon">${icon('book')}</span><div class="trust-text"><strong>Based on UK NICE guideline NG123</strong><p>Gentle, beginner-safe progression · Your diary stays on your phone</p></div>`;
+    }
+  }
+
+  function renderPhotos() {
+    const access = document.getElementById('access-photo');
+    if (access && PHOTOS.access) {
+      access.innerHTML = `<img src="${PHOTOS.access}" alt="" />`;
+      access.hidden = false;
+      access.closest('.gate-hero-card').classList.add('has-photo');
+    }
+    const card = document.getElementById('today-featured-card');
+    if (card && PHOTOS.home && !card.querySelector('.featured-photo')) {
+      card.insertAdjacentHTML('afterbegin', `<div class="featured-photo"><img src="${PHOTOS.home}" alt="" /></div>`);
+      card.classList.add('has-photo');
+    }
+  }
+
+  function setsDotsHtml(done) {
+    return `<div class="sets-row"><span>Sets completed today</span><div class="practice-dots">${[1, 2, 3]
+      .map((n) => `<span class="practice-dot ${n <= done ? 'done' : ''}">${n <= done ? '✓' : n}</span>`)
+      .join('')}</div></div>`;
+  }
+
   function renderStats() {
     const daysDoneEl = document.getElementById('stat-days-done');
     const streakEl = document.getElementById('stat-streak');
     if (daysDoneEl) daysDoneEl.textContent = `${state.completedDays.length} / 7`;
     if (streakEl) streakEl.textContent = `${state.streak} ${state.streak === 1 ? 'day' : 'days'}`;
+    const bar = document.getElementById('stat-days-bar');
+    if (bar) bar.style.width = `${Math.min(100, (state.completedDays.length / 7) * 100)}%`;
+    const note = document.querySelector('.stat-note');
+    if (note) note.textContent = state.streak > 0 ? 'Keep it going today' : 'Starts with your first session';
   }
 
   function renderQuizStatus() {
@@ -263,6 +382,8 @@
     if (summaryEl) summaryEl.textContent = dayData.summary;
     if (durationEl) durationEl.textContent = dayData.duration;
     if (habitTextEl) habitTextEl.textContent = dayData.habit;
+    const poseEl = document.getElementById('today-pose');
+    if (poseEl) poseEl.innerHTML = POSE_ART[dayPoseKey(dayData)];
 
     if (patternBadgeEl) {
       const pAdj = PROGRAM.patternAdjustments[state.pattern] || PROGRAM.patternAdjustments.mixed;
@@ -290,8 +411,11 @@
       listEl.innerHTML = week1.days
         .map((d) => {
           const isDone = state.completedDays.includes(d.day);
+          const isCurrent = !isDone && d.day === state.currentDay;
           return `
-            <button type="button" class="plan-day-item ${isDone ? 'done' : ''}" data-open-day="${d.day}">
+            <button type="button" class="plan-day-item timeline ${isDone ? 'done' : ''} ${isCurrent ? 'current' : ''}" data-open-day="${d.day}">
+              <span class="timeline-dot" aria-hidden="true">${isDone ? '✓' : d.day}</span>
+              <span class="plan-pose" aria-hidden="true">${POSE_ART[dayPoseKey(d)]}</span>
               <div class="plan-day-left">
                 <strong>Day ${d.day}: ${d.title}</strong>
                 <span>${d.duration} · Lesson + Guided Exercise</span>
@@ -508,6 +632,10 @@
           <button type="button" class="secondary-btn" id="btn-close-session">Close</button>
         </div>
         <h2 class="two-tone-heading" style="margin-top:12px;">${dayData.title}</h2>
+        <figure class="pose-panel">
+          ${POSE_ART[dayPoseKey(dayData)]}
+          <figcaption>${POSE_CAPTIONS[dayPoseKey(dayData)]}</figcaption>
+        </figure>
         <div class="lesson-content">
           ${dayData.lessonHtml}
         </div>
@@ -630,6 +758,7 @@
     let remaining = steps[0].seconds;
     let elapsed = 0;
     let paused = false;
+    let currentPose = dayPoseKey(dayData);
 
     modal.querySelector('.modal-sheet').innerHTML = `
       <div class="session-player-box">
@@ -637,6 +766,8 @@
           <span class="card-pill-tag" style="margin-bottom:0;" id="sp-block-count">Day ${dayData.day}</span>
           <button type="button" class="secondary-btn" id="sp-close">Close</button>
         </div>
+
+        <div class="sp-pose" id="sp-pose" aria-hidden="true"></div>
 
         <div class="session-block-header">
           <span class="session-position-pill" id="sp-position"></span>
@@ -691,6 +822,11 @@
           ? `Day ${dayData.day} · Short set`
           : `Day ${dayData.day} · Set ${step.blockIndex} of ${step.totalBlocks}`;
       el('sp-position').textContent = step.position;
+      const pk = poseKey(step.position) || currentPose;
+      if (pk !== currentPose || !el('sp-pose').innerHTML) {
+        currentPose = pk;
+        el('sp-pose').innerHTML = POSE_ART[currentPose];
+      }
       el('sp-block-name').textContent = step.blockName;
       el('sp-cue').textContent = step.cue;
       el('sp-phase').textContent = PHASE_LABELS[step.phase];
@@ -752,6 +888,7 @@
         modal.querySelector('.modal-sheet').innerHTML = `
           <div class="card-pill-tag">Short Set Complete</div>
           <h2 class="two-tone-heading">Set done.<br /><span>Well done!</span></h2>
+          ${setsDotsHtml(setsToday)}
           <p class="card-body-text" style="margin-bottom:16px;">${setsLine}</p>
           <button type="button" id="sp-done" class="primary-btn full-width">Back to Home</button>
         `;
@@ -766,14 +903,16 @@
       modal.querySelector('.modal-sheet').innerHTML = `
         <div class="card-pill-tag">Session Complete</div>
         <h2 class="two-tone-heading">Day ${dayData.day}<br /><span>Done. Well done!</span></h2>
+        ${PHOTOS.done ? `<div class="done-photo"><img src="${PHOTOS.done}" alt="" /></div>` : ''}
+        ${setsDotsHtml(setsToday)}
         <p class="card-body-text" style="margin-bottom:12px;">
           ${isLast
             ? 'You finished Week 1. Open the Progress tab to see your week.'
             : 'Every session helps your muscles learn. Come back tomorrow for the next day.'}
         </p>
         <p class="card-body-text" style="margin-bottom:16px;"><strong>${setsLine}</strong></p>
-        <div class="disclaimer-box">
-          <strong>Today's small habit:</strong>
+        <div class="disclaimer-box habit-box">
+          <strong>${icon('sparkle')} Today's small habit:</strong>
           <p style="margin-top:4px;">${dayData.habit}</p>
         </div>
         <button type="button" id="sp-done" class="primary-btn full-width">Back to Home</button>
@@ -1828,6 +1967,8 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     setupInstall();
+    renderTrustCards();
+    renderPhotos();
     bindEvents();
     renderEntryFlow();
     renderSetupCards();

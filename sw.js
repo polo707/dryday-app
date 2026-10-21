@@ -4,7 +4,7 @@
  * Strategy: network first with a time limit; the saved copy is used offline or on a very slow connection.
  * When you publish big changes, bump VERSION to clear old copies.
  */
-const VERSION = 'v1';
+const VERSION = 'v2';
 const NETWORK_TIMEOUT = 3500; // ms
 const CACHE = `dryday-${VERSION}`;
 

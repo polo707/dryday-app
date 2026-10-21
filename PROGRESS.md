@@ -34,6 +34,13 @@
   - Daily Web Push: "Turn on reminders" card on Home and the Enable Reminders toggle in More. Up to 3 reminders a day at her times and time zone; set 1 says "Your 5-minute routine is ready", sets 2–3 "Your 2-minute set is ready"; skipped if that set is already done. On iPhone, notifications require the Home Screen app (iOS 16.4+) and the app opens the tutorial instead. Clear messages if blocked or unsupported.
   - Server: `api/push.js` (save/delete subscription in private Vercel Blob), `api/push-cron.js` (24 hourly cron jobs in `vercel.json`), `api/_push.js` (VAPID + encryption with Node's crypto, no packages). Tested in `tests/push.test.mjs`; UI tested with Android, iPhone Safari, iPhone Chrome and Instagram user agents, in the root and in a subfolder.
   - Needs Vercel + env vars (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `CRON_SECRET`, `BLOB_READ_WRITE_TOKEN`) — see README.
+- [x] **Update — Visual trust redesign (from Gemini's wireframes):**
+  - Consistent SVG line-icon set replaces emoji (nav, cards, diary, brand heart).
+  - Position illustrations (lying, sitting, standing pictograms with a soft pelvic highlight and an "upward and inward" arrow) on the Home card, in each lesson (with a one-line caption), in the session player (changes with the block's position) and in the Plan list.
+  - Trust layer: "Built on clinical guidelines" card on Home (NICE NG123 dose), compact NICE card on Plan, NICE + privacy lines on the access screen, privacy line under the diary.
+  - Lessons: lists shown as clean rows; player: soft double ring around the circle; completion: "Sets completed today" dots; Progress: days-completed bar; Plan: timeline with number/check dots and the current day highlighted.
+  - `REVIEWER` in `app.js` is `null` on purpose: a "Program reviewed by …, DPT" card appears only when a REAL licensed pelvic floor PT has reviewed the program and agreed to be named. No stock "doctor" images, no invented reviewers or testimonials (FTC endorsement rules).
+  - `PHOTOS` in `app.js` (access, home, done) is empty: optional lifestyle photos go in `/images` and are never presented as customers.
 
 ## Files in the Repository
 1. `README.md`
