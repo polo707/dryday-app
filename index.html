@@ -11,6 +11,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="DryDay" />
   <meta name="description" content="DryDay: A guided daily pelvic floor and bladder habits program for women 40+." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
 
   <!-- Google Fonts: Fraunces (Headings) & Inter (Body) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -179,6 +182,37 @@
               >
                 →
               </button>
+            </div>
+          </article>
+
+          <!-- Set-up cards: add to Home Screen (until installed), then turn on daily reminders -->
+          <article class="white-card setup-card" id="install-card" hidden>
+            <div class="white-card-header">
+              <div class="soft-icon-box" aria-hidden="true">📲</div>
+              <div class="white-card-title-wrap">
+                <h3>Add DryDay to your phone</h3>
+                <button type="button" class="setup-close" data-action="dismiss-install" aria-label="Not now">✕</button>
+              </div>
+            </div>
+            <p class="card-body-text">Get DryDay on your Home Screen with its own icon. It opens full screen, like an app, and can send you your daily reminders.</p>
+            <div class="white-card-footer">
+              <span class="muted-label" id="install-card-hint">Takes 20 seconds</span>
+              <button type="button" class="inline-pill-btn" data-action="install" id="install-card-btn">Show me how →</button>
+            </div>
+          </article>
+
+          <article class="white-card setup-card" id="push-card" hidden>
+            <div class="white-card-header">
+              <div class="soft-icon-box" aria-hidden="true">🔔</div>
+              <div class="white-card-title-wrap">
+                <h3>Daily reminders</h3>
+                <button type="button" class="setup-close" data-action="dismiss-push" aria-label="Not now">✕</button>
+              </div>
+            </div>
+            <p class="card-body-text">We'll send a discreet reminder for each of your 3 daily sets ("Your 5-minute routine is ready"). Nothing else. You can change the times in More.</p>
+            <div class="white-card-footer">
+              <span class="muted-label">No spam</span>
+              <button type="button" class="inline-pill-btn" data-action="enable-push">Turn on →</button>
             </div>
           </article>
 
@@ -405,6 +439,7 @@
               <label for="setting-reminder-enabled"><strong>Enable Reminders</strong></label>
               <input type="checkbox" id="setting-reminder-enabled" class="toggle-checkbox" />
             </div>
+            <p class="muted-small" id="reminder-status" role="status" aria-live="polite"></p>
 
             <div class="setting-item" style="margin-top:8px;">
               <label for="setting-reminder-time-1"><strong>Set 1 · Guided session</strong></label>
@@ -420,7 +455,7 @@
             </div>
 
             <div class="disclaimer-box" style="margin-top:14px; margin-bottom:0; font-size:0.92rem;">
-              <strong>How Reminders Work:</strong> Reminders work while DryDay is open or installed on your home screen. Because DryDay keeps all your data 100% private on your phone with no tracking servers, it does not send background push notifications when the app is completely closed.
+              <strong>How Reminders Work:</strong> DryDay sends a phone notification at each time you pick, even when the app is closed. <strong>Android:</strong> works in Chrome. <strong>iPhone:</strong> first add DryDay to your Home Screen (iOS 16.4 or newer), open it from its icon, then turn reminders on. Your diary and progress stay only on your phone: the reminder service only knows your times, your time zone and how many sets you did today.
             </div>
           </div>
 
@@ -472,12 +507,10 @@
 
             <div class="setting-item">
               <div>
-                <strong>Install on Your Home Screen</strong>
-                <p class="muted-small">
-                  <strong>iPhone Safari:</strong> tap Share → Add to Home Screen.<br />
-                  <strong>Android Chrome:</strong> tap Menu (⋮) → Add to Home screen.
-                </p>
+                <strong>Add to Home Screen</strong>
+                <p class="muted-small" id="install-setting-text">Get DryDay on your phone with its own icon, like an app.</p>
               </div>
+              <button type="button" class="secondary-btn" data-action="install" id="install-setting-btn">How to</button>
             </div>
 
             <hr class="divider" />

@@ -27,12 +27,33 @@ DryDay is an educational exercise and habits program. It is not medical advice, 
 
 ## How to Open & Use DryDay
 
-### Option 1: Live Web App (GitHub Pages)
-1. Open `https://polo707.github.io/dryday-app/` in **Safari** (iPhone) or **Chrome** (Android).
-2. **Add to Home Screen (Recommended):**
-   - **iPhone (Safari):** Tap the **Share** button → **Add to Home Screen**.
-   - **Android (Chrome):** Tap the **three-dot menu** → **Add to Home screen** / **Install app**.
-3. Enter the access code on first launch: `DRYDAY2026`
+### Option 1: Vercel (recommended — needed for daily notifications)
+The app is a static site plus three small serverless functions in `api/` for push reminders.
+
+1. In Vercel: **Add New → Project → Import** `polo707/dryday-app` (Framework preset: **Other**, no build command).
+2. **Storage → Create → Blob** and connect it to the project (this adds `BLOB_READ_WRITE_TOKEN`; it keeps the push subscriptions, privately).
+3. **Settings → Environment Variables:**
+   - `VAPID_PUBLIC_KEY` — must match `PUSH_PUBLIC_KEY` in `app.js`
+   - `VAPID_PRIVATE_KEY` — secret, never commit it
+   - `VAPID_SUBJECT` — `mailto:` + a support email
+   - `CRON_SECRET` — any long random string (Vercel sends it to the cron job)
+4. **Redeploy.** `vercel.json` registers 24 daily cron jobs (one per hour, the Hobby-plan limit is once a day per job) that call `/api/push-cron`.
+
+### Option 2: GitHub Pages (no notifications)
+`https://polo707.github.io/dryday-app/` works for everything except phone notifications (GitHub Pages can't run `api/`). In-app reminder banners still work.
+
+### Install on the phone
+The app shows its own step-by-step tutorial (Home card and **More → Add to Home Screen**), adapted to the phone:
+- **Android (Chrome):** one-tap **Install app** button when Chrome offers it; otherwise Menu ⋮ → Install app / Add to Home screen.
+- **iPhone (Safari):** Share → Add to Home Screen → Add. Chrome/Firefox/Edge on iPhone: Share at the top right. Inside Instagram/Facebook: copy the link and open it in Safari first.
+- Access code on first launch: `DRYDAY2026`
+
+### Daily notifications (Web Push)
+- Turned on from the Home card or **More → Enable Reminders**. Up to 3 per day at her chosen times (default 09:00 / 14:00 / 19:00, her own time zone). A reminder is skipped if she already did that set.
+- Android: Chrome. iPhone/iPad: only after adding to the Home Screen and opening from the icon (iOS 16.4+) — the app explains this.
+- On the Vercel Hobby plan the cron runs once an hour, so a reminder can arrive up to ~1 hour after the chosen time.
+- The server only stores: the push address, time zone, the 3 times and today's number of sets. No name, email or health data.
+- Tests: `node tests/push.test.mjs` (timing, encryption, VAPID signature).
 
 ### Option 2: Run Locally
 No build tools or dependencies are required.
@@ -51,6 +72,9 @@ python3 -m http.server 8000
 - `styles.css` — Mobile-first design system (`#7A1F3D` primary dark, `#C2557A` accent, `#F2A7C0` soft accent, `#FBF1F3` background, Fraunces & Inter typography).
 - `program.js` — Curriculum data (`const PROGRAM = { weeks: [...] }`): full Week 1, pattern bonus blocks, and Weeks 2–8 placeholders.
 - `app.js` — State management (`localStorage` with try/catch), navigation, gates, quiz, guided session player, Urge SOS, bladder diary, progress, reminders, and settings.
+- `manifest.webmanifest`, `icons/`, `sw.js` — Installable app (PWA): icon, full-screen launch, offline copy, notification display.
+- `api/push.js`, `api/push-cron.js`, `api/_push.js` — Save/remove a phone's push subscription; hourly job that sends due reminders (VAPID + aes128gcm, no dependencies).
+- `vercel.json` — No-cache headers for app files and the 24 hourly cron jobs.
 - `CONTENT_SOURCES.md` — Clinical guidelines and reference mapping for all exercise parameters and educational content.
 - `PROGRESS.md` — Phase-by-phase build log and recovery checkpoint.
 

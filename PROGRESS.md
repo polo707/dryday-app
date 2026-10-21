@@ -28,6 +28,12 @@
   - Contrast check: body/muted text 5.9–6.5:1, white on burgundy 10:1, rose headings 3.9:1 (large text, passes AA). The active nav label was 4.3:1, so the active tab color was deepened to `#A9426A` (5.7:1).
 - [x] **Update — 3 sets per day (NICE NG123 1.4.5):** Home "Today's Practice" card (0–3 sets with dots); the guided session counts as set 1; "Short set" = 8 slow holds using the timing of the day practiced today (never harder); completion screens tell her how many sets are left; 3 reminder times in Settings (default 09:00 / 14:00 / 19:00, an older single time is kept as the first); Day 1 and Day 7 lessons explain "at least 8 squeezes, 3 times a day, for at least 3 months"; every lesson shows a safety line (stop if pain, don't hold breath or push down, see a doctor/PT if worse) or the day's `safetyNote` if present. Verified NICE quotes added to `CONTENT_SOURCES.md` section 3.
   - Known limits: reminders and the access code are client-side only; the access code `DRYDAY2026` is visible in the code and is a placeholder until a per-purchase delivery flow exists.
+- [x] **Update — Installable app + daily notifications (same setup as the CANINE app):**
+  - Installable PWA: `manifest.webmanifest`, burgundy app icons (`icons/`), service worker `sw.js` (offline copy, network-first; shows notifications and opens the app when tapped). Relative paths, so it works on Vercel and on GitHub Pages.
+  - Home-screen tutorial: Home card + **More → Add to Home Screen**. Android: Chrome's own Install button when available, else 3 steps with the ⋮ menu. iPhone: Safari steps (Share → Add to Home Screen → Add), a variant for Chrome/Firefox/Edge on iPhone, and an "open in Safari first / Copy link" note inside Instagram/Facebook. Desktop: link to open on the phone.
+  - Daily Web Push: "Turn on reminders" card on Home and the Enable Reminders toggle in More. Up to 3 reminders a day at her times and time zone; set 1 says "Your 5-minute routine is ready", sets 2–3 "Your 2-minute set is ready"; skipped if that set is already done. On iPhone, notifications require the Home Screen app (iOS 16.4+) and the app opens the tutorial instead. Clear messages if blocked or unsupported.
+  - Server: `api/push.js` (save/delete subscription in private Vercel Blob), `api/push-cron.js` (24 hourly cron jobs in `vercel.json`), `api/_push.js` (VAPID + encryption with Node's crypto, no packages). Tested in `tests/push.test.mjs`; UI tested with Android, iPhone Safari, iPhone Chrome and Instagram user agents, in the root and in a subfolder.
+  - Needs Vercel + env vars (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `CRON_SECRET`, `BLOB_READ_WRITE_TOKEN`) — see README.
 
 ## Files in the Repository
 1. `README.md`
@@ -43,4 +49,4 @@
 2. **Design system:** Primary dark `#7A1F3D`, accent `#C2557A`, soft accent `#F2A7C0`, background `#FBF1F3`, cards `#FFFFFF`, text `#2A1A20`, muted `#6B5960`. Fraunces (headings) + Inter (body). Floating dark pill bottom nav (Home, Plan, Progress, More) + Urge SOS button in the header.
 3. **Storage:** All `localStorage` reads/writes wrapped in `try/catch` with in-memory fallback.
 4. **Evidence policy:** Every hold time, rest time, rep count and instruction in `program.js` must trace to `CONTENT_SOURCES.md`, using the most conservative beginner-safe option when sources differ.
-5. **Hosting:** Static files on GitHub Pages (`https://polo707.github.io/dryday-app/`). No backend, no build step.
+5. **Hosting:** Vercel (static files + `api/` functions for push, no build step). GitHub Pages still works without notifications.

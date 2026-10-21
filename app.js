@@ -850,6 +850,7 @@
     state.practiceLog[key] = (state.practiceLog[key] || 0) + 1;
     saveState();
     renderPracticeCard();
+    if (typeof syncPush === 'function') syncPush();
     return state.practiceLog[key];
   }
 
@@ -1320,6 +1321,324 @@
     } catch (e) {}
   }
 
+  // =====================================================
+  // INSTALL AS AN APP (PWA) + HOME SCREEN TUTORIALS
+  // Android/Chrome: our own "Install" button (beforeinstallprompt), or step-by-step help.
+  // iPhone/iPad: Apple has no install button, so we explain Share → Add to Home Screen,
+  // adapted to Safari, Chrome/Firefox/Edge, or the in-app browser of Instagram/Facebook.
+  // =====================================================
+  const PUSH_PUBLIC_KEY = 'BHZZzjACARtjkl6pI-F3BDdLWes_zGu_8CJFV0DLNtOVswxtVvH3QucPfcK88A5veCtpUYezZEJYv4dABAi1Ba0';
+  const INSTALL_DISMISS_KEY = 'dryday:install-dismissed';
+  const PUSH_DISMISS_KEY = 'dryday:push-dismissed';
+  const PUSH_ON_KEY = 'dryday:push-on';
+  const PUSH_SENT_KEY = 'dryday:push-sent';
+  let deferredInstall = null;
+
+  const ls = {
+    get: (k) => { try { return window.localStorage.getItem(k); } catch (_) { return null; } },
+    set: (k, v) => { try { window.localStorage.setItem(k, v); } catch (_) {} },
+    del: (k) => { try { window.localStorage.removeItem(k); } catch (_) {} }
+  };
+
+  const isStandalone = () =>
+    (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) ||
+    window.navigator.standalone === true;
+
+  const isIOS = () => {
+    const ua = window.navigator.userAgent || '';
+    return /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && window.navigator.maxTouchPoints > 1);
+  };
+
+  const isAndroid = () => /Android/i.test(window.navigator.userAgent || '');
+
+  /** 'safari' | 'browser' (Chrome, Firefox, Edge on iOS) | 'inapp' (Instagram, Facebook, TikTok…) */
+  function iosBrowser() {
+    const ua = window.navigator.userAgent || '';
+    if (/Instagram|FBAN|FBAV|FB_IAB|FBIOS|Messenger|TikTok|musical_ly|BytedanceWebview|Snapchat|Twitter|LinkedInApp|Pinterest|Line\/|GSA\//.test(ua)) return 'inapp';
+    if (/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/.test(ua)) return 'browser';
+    return 'safari';
+  }
+
+  const isInAppBrowser = () => /Instagram|FBAN|FBAV|FB_IAB|FBIOS|Messenger|TikTok|musical_ly|BytedanceWebview|Snapchat/.test(window.navigator.userAgent || '');
+
+  function canUseServiceWorker() {
+    if (!('serviceWorker' in window.navigator)) return false;
+    const { protocol, hostname } = window.location;
+    const secure = protocol === 'https:' || hostname === 'localhost' || hostname === '127.0.0.1';
+    let framed = true;
+    try { framed = window.self !== window.top; } catch (_) { framed = true; }
+    return secure && !framed;
+  }
+
+  function showToast(text) {
+    const old = document.querySelector('.app-toast');
+    if (old) old.remove();
+    const t = document.createElement('div');
+    t.className = 'app-toast';
+    t.setAttribute('role', 'status');
+    t.textContent = text;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 4200);
+  }
+
+  function setupInstall() {
+    if (canUseServiceWorker()) {
+      const register = () => window.navigator.serviceWorker.register('sw.js').catch(() => {});
+      if (document.readyState === 'complete') register();
+      else window.addEventListener('load', register);
+    }
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault(); // we show our own button instead of the automatic banner
+      deferredInstall = e;
+      renderSetupCards();
+    });
+    window.addEventListener('appinstalled', () => {
+      deferredInstall = null;
+      showToast('DryDay was added to your phone');
+      renderSetupCards();
+    });
+  }
+
+  const ICONS = {
+    share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13"/><path d="m7 8 5-5 5 5"/><rect x="4" y="11" width="16" height="10" rx="2"/></svg>',
+    add: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 8v8M8 12h8"/></svg>',
+    dots: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
+    more: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>'
+  };
+  const ic = (name) => `<span class="howto-icon" aria-hidden="true">${ICONS[name]}</span>`;
+  const step = (n, html) => `<li class="howto-step"><span class="howto-num" aria-hidden="true">${n}</span><p>${html}</p></li>`;
+
+  function openInstallSheet(note) {
+    const existing = document.getElementById('modal-install');
+    if (existing) existing.remove();
+    const appUrl = new URL('./', window.location.href).href;
+    let body = '';
+
+    if (isIOS()) {
+      const browser = iosBrowser();
+      body = `
+        <span class="card-pill-tag">iPhone &amp; iPad</span>
+        <h2 class="two-tone-heading">Add DryDay to your<br /><span>Home Screen</span></h2>
+        ${note ? `<div class="howto-note"><p>${note}</p></div>` : ''}
+        <p class="card-body-text">You'll have DryDay on your Home Screen with its own icon. It opens full screen, just like an app.</p>
+        ${browser === 'inapp' ? `
+          <div class="howto-note">
+            <p><strong>Open it in Safari first.</strong> You're inside another app (like Instagram or Facebook), and it can't be added from here. Copy the link, open Safari and paste it into the address bar.</p>
+            <button type="button" class="secondary-btn" id="install-copy">Copy link</button>
+          </div>` : ''}
+        <ol class="howto">
+          ${browser === 'browser'
+            ? step(1, `Tap ${ic('share')} <strong>Share</strong> at the top right, next to the page address.`)
+            : step(1, `Tap ${ic('share')} <strong>Share</strong> in the Safari toolbar at the bottom. If you don't see it, first tap ${ic('more')} (More) or scroll up a little.`)}
+          ${step(2, `Scroll down and tap ${ic('add')} <strong>"Add to Home Screen"</strong>.`)}
+          ${step(3, `Tap <strong>"Add"</strong>. If you see "Open as Web App", leave it turned on.`)}
+          ${step(4, `Open DryDay from its new icon on your Home Screen. Then turn on reminders in <strong>More</strong>.`)}
+        </ol>`;
+    } else if (isAndroid()) {
+      body = `
+        <span class="card-pill-tag">Android</span>
+        <h2 class="two-tone-heading">Add DryDay to your<br /><span>Home Screen</span></h2>
+        ${note ? `<div class="howto-note"><p>${note}</p></div>` : ''}
+        <p class="card-body-text">You'll have DryDay on your Home Screen with its own icon. It opens full screen, just like an app.</p>
+        ${isInAppBrowser() ? `
+          <div class="howto-note">
+            <p><strong>Open it in Chrome first.</strong> You're inside another app (like Instagram or Facebook). Tap ${ic('dots')} and choose <strong>"Open in Chrome"</strong> (or copy the link and paste it into Chrome).</p>
+            <button type="button" class="secondary-btn" id="install-copy">Copy link</button>
+          </div>` : ''}
+        <ol class="howto">
+          ${step(1, `In Chrome, tap ${ic('dots')} <strong>Menu</strong> at the top right.`)}
+          ${step(2, `Tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.`)}
+          ${step(3, `Tap <strong>"Install"</strong> (or "Add") to confirm.`)}
+          ${step(4, `Open DryDay from its new icon. Then turn on reminders in <strong>More</strong>.`)}
+        </ol>`;
+    } else {
+      body = `
+        <span class="card-pill-tag">On your phone</span>
+        <h2 class="two-tone-heading">Use DryDay on<br /><span>your phone</span></h2>
+        <p class="card-body-text">DryDay is made for your phone. Open this link on your phone, then follow the steps to add it to your Home Screen:</p>
+        <div class="howto-note"><p><strong>${appUrl}</strong></p><button type="button" class="secondary-btn" id="install-copy">Copy link</button></div>`;
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-install';
+    modal.className = 'modal-backdrop';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.innerHTML = `<div class="modal-sheet">${body}<button type="button" class="primary-btn full-width" id="install-done">Got it</button></div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#install-done').addEventListener('click', () => modal.remove());
+    const copy = modal.querySelector('#install-copy');
+    if (copy) {
+      copy.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(appUrl);
+          showToast('Link copied');
+        } catch (_) {
+          showToast(`Copy this link: ${appUrl}`);
+        }
+      });
+    }
+  }
+
+  async function startInstall() {
+    if (deferredInstall) {
+      const e = deferredInstall;
+      deferredInstall = null;
+      e.prompt();
+      const choice = await e.userChoice.catch(() => null);
+      if (!choice || choice.outcome !== 'accepted') openInstallSheet();
+      renderSetupCards();
+      return;
+    }
+    openInstallSheet();
+  }
+
+  // =====================================================
+  // DAILY REMINDERS (WEB PUSH)
+  // The phone subscribes; the server (/api/push + hourly cron) sends up to 3 reminders a day
+  // at the chosen local times, skipping sets already done. Works with the app closed.
+  // Android: Chrome. iPhone/iPad: only when added to the Home Screen (iOS 16.4+).
+  // =====================================================
+  function pushSupport() {
+    // iPhone/iPad: Apple only allows web notifications for apps opened from the Home Screen
+    if (isIOS() && !isStandalone()) return 'ios-install';
+    const hasApi = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    if (!hasApi) return isIOS() && !isStandalone() ? 'ios-install' : 'unsupported';
+    if (!canUseServiceWorker()) return 'unsupported';
+    if (Notification.permission === 'denied') return 'denied';
+    return 'ok';
+  }
+
+  const pushOn = () => ls.get(PUSH_ON_KEY) === '1' && 'Notification' in window && Notification.permission === 'granted';
+
+  function keyBytes(b64) {
+    const s = b64.replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(s + '='.repeat((4 - (s.length % 4)) % 4));
+    return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+  }
+
+  function pushPayload(sub) {
+    return {
+      subscription: sub.toJSON(),
+      tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      times: state.settings.reminderTimes,
+      progress: { date: toDateKey(new Date()), sets: setsDoneToday() }
+    };
+  }
+
+  async function postPush(method, body) {
+    const res = await fetch('api/push', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (!res.ok) throw new Error(`push ${res.status}`);
+  }
+
+  /** Must run from a tap (the browser asks for permission). */
+  async function enablePush() {
+    const support = pushSupport();
+    if (support !== 'ok') return support;
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return 'denied';
+      const reg = await navigator.serviceWorker.ready;
+      const sub = (await reg.pushManager.getSubscription())
+        || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(PUSH_PUBLIC_KEY) });
+      const payload = pushPayload(sub);
+      await postPush('POST', payload);
+      ls.set(PUSH_ON_KEY, '1');
+      ls.set(PUSH_SENT_KEY, JSON.stringify({ times: payload.times, progress: payload.progress }));
+      reg.showNotification('Reminders turned on', {
+        body: 'We’ll remind you at your 3 practice times. You can change them in More.',
+        icon: 'icons/icon-192.png',
+        tag: 'dryday-welcome'
+      }).catch(() => {});
+      return 'enabled';
+    } catch (err) {
+      console.warn('[reminders]', err);
+      return 'error';
+    }
+  }
+
+  async function disablePush() {
+    ls.del(PUSH_ON_KEY);
+    ls.del(PUSH_SENT_KEY);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await postPush('DELETE', { endpoint: sub.endpoint }).catch(() => {});
+        await sub.unsubscribe();
+      }
+    } catch (_) {}
+  }
+
+  /** Sends new times / today's sets to the server (only if reminders are on and something changed). */
+  async function syncPush() {
+    if (!pushOn()) return;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (!sub) { ls.del(PUSH_ON_KEY); return; }
+      const payload = pushPayload(sub);
+      const json = JSON.stringify({ times: payload.times, progress: payload.progress });
+      if (ls.get(PUSH_SENT_KEY) === json) return;
+      await postPush('POST', payload);
+      ls.set(PUSH_SENT_KEY, json);
+    } catch (_) { /* offline: retried next time */ }
+  }
+
+  async function turnOnReminders() {
+    const result = await enablePush();
+    if (result === 'enabled') {
+      state.settings.reminderEnabled = true;
+      saveState();
+      showToast('Reminders turned on');
+    } else if (result === 'ios-install') {
+      openInstallSheet('On iPhone, Apple only allows notifications from apps on your Home Screen. Add DryDay, open it from its icon, and turn on reminders there.');
+    } else if (result === 'denied') {
+      showToast('Notifications are blocked. Turn them on in your phone or browser settings.');
+    } else if (result === 'unsupported') {
+      showToast('This browser can’t show notifications. Open DryDay in Chrome (Android) or add it to your Home Screen (iPhone).');
+    } else {
+      showToast('Couldn’t turn reminders on. Check your connection and try again.');
+    }
+    syncSettingsControls();
+    renderSetupCards();
+    return result;
+  }
+
+  function renderSetupCards() {
+    const installCard = document.getElementById('install-card');
+    const pushCard = document.getElementById('push-card');
+    const installBtn = document.getElementById('install-card-btn');
+    const installHint = document.getElementById('install-card-hint');
+    const settingText = document.getElementById('install-setting-text');
+    const settingBtn = document.getElementById('install-setting-btn');
+    const standalone = isStandalone();
+
+    const showInstall = !standalone && ls.get(INSTALL_DISMISS_KEY) !== '1' && (isIOS() || isAndroid() || !!deferredInstall);
+    if (installCard) installCard.hidden = !showInstall;
+    if (installBtn) installBtn.textContent = deferredInstall ? 'Install app →' : 'Show me how →';
+    if (installHint) installHint.textContent = isIOS() ? 'iPhone & iPad · 20 seconds' : 'Takes 20 seconds';
+
+    if (settingText) settingText.textContent = standalone ? 'DryDay is already on your Home Screen.' : 'Get DryDay on your phone with its own icon, like an app.';
+    if (settingBtn) {
+      settingBtn.hidden = standalone;
+      settingBtn.textContent = deferredInstall ? 'Install' : 'How to';
+    }
+
+    const support = pushSupport();
+    const showPush = !showInstall && !pushOn() && support === 'ok' && ls.get(PUSH_DISMISS_KEY) !== '1';
+    if (pushCard) pushCard.hidden = !showPush;
+
+    const status = document.getElementById('reminder-status');
+    if (status) {
+      if (pushOn()) status.textContent = 'Phone notifications are on.';
+      else if (support === 'ios-install') status.textContent = 'On iPhone, add DryDay to your Home Screen first to get notifications.';
+      else if (support === 'denied') status.textContent = 'Notifications are blocked in your settings. Reminders will only show inside the app.';
+      else if (support === 'unsupported') status.textContent = 'This browser can’t show notifications. Reminders will only show inside the app.';
+      else status.textContent = '';
+    }
+  }
+
   function bindEvents() {
     if (accessForm) {
       accessForm.addEventListener('submit', (e) => {
@@ -1379,6 +1698,24 @@
         switchTab('progress');
         return;
       }
+      if (e.target.closest('[data-action="install"]')) {
+        startInstall();
+        return;
+      }
+      if (e.target.closest('[data-action="dismiss-install"]')) {
+        ls.set(INSTALL_DISMISS_KEY, '1');
+        renderSetupCards();
+        return;
+      }
+      if (e.target.closest('[data-action="enable-push"]')) {
+        turnOnReminders();
+        return;
+      }
+      if (e.target.closest('[data-action="dismiss-push"]')) {
+        ls.set(PUSH_DISMISS_KEY, '1');
+        renderSetupCards();
+        return;
+      }
       const dayRow = e.target.closest('[data-open-day]');
       if (dayRow) {
         const day = parseInt(dayRow.getAttribute('data-open-day'), 10) || 1;
@@ -1423,14 +1760,20 @@
 
     const remOn = document.getElementById('setting-reminder-enabled');
     if (remOn) {
-      remOn.addEventListener('change', () => {
+      remOn.addEventListener('change', async () => {
         state.settings.reminderEnabled = remOn.checked;
         saveState();
-        try {
-          if (remOn.checked && 'Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission();
-          }
-        } catch (e) {}
+        if (remOn.checked) {
+          await turnOnReminders();
+          // In-app reminders stay on even if phone notifications aren't possible here
+          state.settings.reminderEnabled = true;
+          saveState();
+          syncSettingsControls();
+        } else {
+          await disablePush();
+          showToast('Reminders turned off');
+          renderSetupCards();
+        }
       });
     }
 
@@ -1440,6 +1783,7 @@
         state.settings.reminderTimes[i] = input.value || ['09:00', '14:00', '19:00'][i];
         state.settings.remindersShown.slots = state.settings.remindersShown.slots.filter((s) => s !== i);
         saveState();
+        syncPush();
       });
     });
 
@@ -1473,6 +1817,7 @@
         if (confirmed) {
           clearSessionTimer();
           clearSosTimer();
+          disablePush();
           StorageHelper.clear();
           state = getDefaultState();
           renderEntryFlow();
@@ -1482,8 +1827,11 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
+    setupInstall();
     bindEvents();
     renderEntryFlow();
+    renderSetupCards();
+    syncPush();
     checkReminder();
     setInterval(checkReminder, 30000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) checkReminder(); });
