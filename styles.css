@@ -1742,3 +1742,71 @@ body.report-open { overflow: hidden; }
   .report-bar span { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .report-table.grid th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* =====================================================
+   FIXES FROM THE AI CUSTOMER TEST (ux-testers run)
+   ===================================================== */
+.safety-card[hidden] { display: none !important; }
+.safety-card { border: 2px solid var(--accent); background: linear-gradient(180deg, #FFFFFF 0%, #FFF3F6 100%); }
+.safety-card .white-card-footer { flex-wrap: wrap; }
+
+.text-btn {
+  background: none;
+  border: 0;
+  color: var(--primary-dark);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 12px 8px;
+  min-height: 48px;
+  font-size: 0.95rem;
+}
+.text-btn.full-width { display: block; width: 100%; margin-top: 6px; }
+
+.reminder-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px 14px;
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1px dashed var(--border-soft);
+  background: var(--bg);
+  color: var(--primary-dark);
+  font-weight: 600;
+  font-size: 0.92rem;
+  text-align: left;
+}
+.reminder-link .ico { width: 18px; height: 18px; }
+
+.quiz-quick-btn {
+  display: block;
+  width: 100%;
+  margin: 4px 0 14px;
+  padding: 12px 14px;
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg);
+  color: var(--primary-dark);
+  font-weight: 700;
+  text-align: left;
+}
+#quiz-form.quick .quiz-optional { display: none; }
+
+.stats-grid .stat-wide { grid-column: 1 / -1; }
+.chart-bar.drink-bar { background: #D9C2CB; }
+.legend-dot.drink-dot { background: #D9C2CB; }
+.chart-legend { flex-wrap: wrap; }
+
+.night-tips { padding-left: 20px; margin-top: 4px; }
+.night-tips li { margin-bottom: 8px; color: var(--text); font-size: 0.95rem; }
+
+.about-sheet h4 { font-family: 'Fraunces', serif; font-size: 1.12rem; color: var(--primary-dark); margin: 18px 0 6px; }
+.about-sheet p, .about-sheet li { font-size: 0.95rem; color: var(--text); line-height: 1.5; }
+.about-sheet a { color: var(--primary-dark); font-weight: 600; word-break: break-word; }
+.source-list, .about-list { padding-left: 20px; display: grid; gap: 6px; }
+
+.diary-suboptions { scroll-margin-bottom: 140px; }

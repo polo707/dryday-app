@@ -50,6 +50,8 @@
       quizAnswers: {},
       redFlagsDetected: false,
       tensionFlag: false, // pelvic pain / pain with sex / trouble relaxing → PT first
+      tensionCleared: false, // she confirmed a PT/doctor cleared her for squeezing exercises
+      redFlagCleared: false,
       techniqueCheck: null, // { date, issues: [] }
       practiceHistory: [], // { ts, kind: 'session' | 'short', day }
       milestonesSeen: [],
@@ -65,7 +67,7 @@
         sound: true,
         vibration: true,
         voice: false,
-        discreet: false,
+        discreet: true, // embarrassing topic: neutral notifications by default
         dayStart: 0,
         reminderEnabled: false,
         reminderTime: '09:00',
@@ -496,7 +498,7 @@
   const MILESTONES = [
     { id: 'first', title: 'First session', need: 'Finish your first guided session', done: () => state.completedDays.length >= 1 },
     { id: 'three', title: 'All 3 sets in a day', need: 'Do 3 sets in one day', done: () => Object.values(state.practiceLog).some((n) => n >= 3) },
-    { id: 'diary', title: 'Diary started', need: 'Log 5 diary entries', done: () => state.diary.length >= 5 },
+    { id: 'diary', title: 'Diary started', need: 'Log 3 diary entries', done: () => state.diary.length >= 3 },
     { id: 'streak3', title: '3 days in a row', need: 'Practice 3 days in a row', done: () => Math.max(state.bestStreak || 0, state.streak || 0) >= 3 },
     { id: 'week1', title: 'Week 1 complete', need: 'Complete Days 1–7', done: () => state.completedDays.length >= 7 },
     { id: 'days21', title: '21 days of practice', need: 'Practice on 21 different days', done: () => practiceDaysCount() >= 21 },
@@ -703,11 +705,204 @@
     });
   }
 
+  // =====================================================
+  // SAFETY GATE — pain / red-flag answers pause the squeezing exercises
+  // until she confirms a clinician cleared her (asked every time until then).
+  // =====================================================
+  /** 'tension' | 'redflag' | null */
+  function safetyGate() {
+    if (state.tensionFlag && !state.tensionCleared) return 'tension';
+    if (state.redFlagsDetected && !state.redFlagCleared) return 'redflag';
+    return null;
+  }
+
+  /** Runs proceed() directly, or after she confirms she was cleared. clearOnly: just record the clearance. */
+  function withSafetyGate(proceed, clearOnly) {
+    const gate = safetyGate();
+    if (!gate) { proceed(); return; }
+    const old = document.getElementById('modal-safety');
+    if (old) old.remove();
+    const tension = gate === 'tension';
+    const modal = document.createElement('div');
+    modal.id = 'modal-safety';
+    modal.className = 'modal-backdrop';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.innerHTML = `
+      <div class="modal-sheet">
+        <div class="card-pill-tag">Safety Check</div>
+        <h2 class="two-tone-heading">${tension ? 'Were you cleared by a<br /><span>physical therapist?</span>' : 'Did your doctor<br /><span>say it’s OK?</span>'}</h2>
+        <p class="card-body-text" style="margin-bottom:14px;">${tension
+          ? 'You told us about pelvic pain, pain during sex or trouble relaxing. Only start the squeezing exercises if a pelvic floor physical therapist or your doctor has checked you and said they are right for you.'
+          : 'You told us about a symptom that should be checked first (such as blood in the urine, pain, fever, heaviness, or a recent birth). Only start if your doctor or a pelvic floor physical therapist has said the exercises are right for you.'}</p>
+        <button type="button" class="primary-btn full-width" id="safety-no">${tension ? 'Not yet: do the relaxation instead' : 'Not yet'}</button>
+        <button type="button" class="text-btn full-width" id="safety-yes">${tension ? 'Yes, a physical therapist or doctor cleared me' : 'Yes, my doctor or physical therapist said it’s OK'}</button>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#safety-no').addEventListener('click', () => {
+      modal.remove();
+      if (tension) {
+        const lesson = document.getElementById('modal-session');
+        if (lesson) lesson.remove();
+        openRelaxModal();
+      }
+    });
+    modal.querySelector('#safety-yes').addEventListener('click', () => {
+      if (tension) state.tensionCleared = true; else state.redFlagCleared = true;
+      saveState();
+      modal.remove();
+      renderSafetyCard();
+      renderPracticeCard();
+      if (!clearOnly && safetyGate()) { withSafetyGate(proceed); return; } // both flags: ask for the second one too
+      proceed();
+    });
+  }
+
+  /** Gentle down-training for a tense pelvic floor: slow belly breathing, no squeezing. Not counted as a set. */
+  function openRelaxModal() {
+    clearSessionTimer();
+    const relaxDay = {
+      day: state.currentDay,
+      title: 'Relaxation',
+      isMiniSet: true,
+      isRelax: true,
+      blocks: [{
+        name: 'Relaxed Belly Breathing',
+        position: 'Lying Down or Sitting',
+        cue: 'Breathe in slowly and let your belly and pelvic floor soften and drop. Breathe out gently. No squeezing at all.',
+        reps: 10,
+        holdSeconds: 4,
+        relaxSeconds: 6,
+        isBreathing: true
+      }]
+    };
+    const existing = document.getElementById('modal-session');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'modal-session';
+    modal.className = 'modal-backdrop';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.innerHTML = '<div class="modal-sheet"></div>';
+    document.body.appendChild(modal);
+    startInteractivePlayer(modal, relaxDay, null);
+  }
+
+  function renderSafetyCard() {
+    const card = document.getElementById('safety-card');
+    if (!card) return;
+    const gate = safetyGate();
+    card.hidden = !gate;
+    if (!gate) { card.innerHTML = ''; return; }
+    card.innerHTML = gate === 'tension' ? `
+      <div class="white-card-header">
+        <div class="soft-icon-box" aria-hidden="true">${icon('shield')}</div>
+        <div class="white-card-title-wrap"><h3>See a physical therapist first</h3></div>
+      </div>
+      <p class="card-body-text">You told us about pain or trouble relaxing. Squeezing exercises are paused until a pelvic floor physical therapist says they are right for you. You can still use the relaxation routine, the diary and the report for your doctor.</p>
+      <div class="white-card-footer">
+        <button type="button" class="text-btn" data-action="clear-safety">I was cleared</button>
+        <button type="button" class="inline-pill-btn" data-action="relax">Relaxation (2 min) →</button>
+      </div>` : `
+      <div class="white-card-header">
+        <div class="soft-icon-box" aria-hidden="true">${icon('shield')}</div>
+        <div class="white-card-title-wrap"><h3>Check with your doctor first</h3></div>
+      </div>
+      <p class="card-body-text">You told us about a symptom that should be checked before you start the exercises. You can read the lessons and use the diary and the report for your doctor in the meantime.</p>
+      <div class="white-card-footer">
+        <span class="muted-label">Safety first</span>
+        <button type="button" class="inline-pill-btn" data-action="clear-safety">My doctor said it's OK</button>
+      </div>`;
+  }
+
+  function formatTime(hhmm) {
+    const [h, m] = String(hhmm || '09:00').split(':').map(Number);
+    const d = new Date(2000, 0, 1, h, m);
+    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function renderRemindersSummary() {
+    const el = document.getElementById('practice-reminders-text');
+    if (!el) return;
+    el.textContent = state.settings.reminderEnabled
+      ? `Reminders: ${state.settings.reminderTimes.map(formatTime).join(' · ')} · Change`
+      : 'Reminders: off · Set up';
+  }
+
+  // =====================================================
+  // ABOUT, PRIVACY & SOURCES (same promises as the sales page)
+  // =====================================================
+  const SUPPORT_EMAIL = 'holauniversocanino@gmail.com';
+  const OWNER = 'Pablo Vidal (Universo Perruno), Montevideo, Uruguay';
+  const SOURCES = [
+    ['NICE guideline NG123: Urinary incontinence and pelvic organ prolapse in women: management', 'https://www.nice.org.uk/guidance/ng123'],
+    ['Cochrane review: Pelvic floor muscle training versus no treatment for urinary incontinence in women (Dumoulin et al.)', 'https://www.cochranelibrary.com/cdsr/doi/10.1002/14651858.CD005654.pub4/full'],
+    ['NHS: Pelvic floor exercises', 'https://www.nhs.uk/common-health-questions/womens-health/what-are-pelvic-floor-exercises/'],
+    ['AUA/SUFU guideline: Overactive bladder in adults', 'https://www.auanet.org/guidelines-and-quality/guidelines/overactive-bladder-(oab)-guideline'],
+    ['ACOG: Urinary incontinence (patient FAQ)', 'https://www.acog.org/womens-health/faqs/urinary-incontinence'],
+    ['NIA: Urinary incontinence in older adults', 'https://www.nia.nih.gov/health/bladder-health-and-incontinence/urinary-incontinence-older-adults'],
+    ['NIDDK: Bladder control problems', 'https://www.niddk.nih.gov/health-information/urologic-diseases/bladder-control-problems'],
+    ['Mayo Clinic: Kegel exercises, a how-to guide for women', 'https://www.mayoclinic.org/healthy-lifestyle/womens-health/in-depth/kegel-exercises/art-20045283']
+  ];
+
+  function openAbout() {
+    const old = document.getElementById('modal-about');
+    if (old) old.remove();
+    const reviewed = REVIEWER && REVIEWER.name
+      ? `The program was reviewed by ${escapeHtml(REVIEWER.name)}${REVIEWER.credentials ? ', ' + escapeHtml(REVIEWER.credentials) : ''}.`
+      : 'It was written from the published clinical guidelines listed below; it has not been individually reviewed by a clinician.';
+    const modal = document.createElement('div');
+    modal.id = 'modal-about';
+    modal.className = 'modal-backdrop';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.innerHTML = `
+      <div class="modal-sheet about-sheet">
+        <div class="status-row">
+          <span class="card-pill-tag" style="margin-bottom:0;">About DryDay</span>
+          <button type="button" class="secondary-btn" id="about-close">Close</button>
+        </div>
+        <h2 class="two-tone-heading" style="margin-top:12px;">About, Privacy<br /><span>&amp; Sources</span></h2>
+
+        <h4>Who makes DryDay</h4>
+        <p>DryDay is an educational pelvic floor and bladder habits program made by ${OWNER}. ${reviewed} It does not replace your doctor or a pelvic floor physical therapist.</p>
+
+        <h4>Where the advice comes from</h4>
+        <p>Exercise amounts, hold times and the urge technique follow these sources, using the most conservative beginner option when they differ:</p>
+        <ol class="source-list">${SOURCES.map(([t, u]) => `<li><a href="${u}" target="_blank" rel="noopener">${t}</a></li>`).join('')}</ol>
+
+        <h4>Your privacy</h4>
+        <ul class="about-list">
+          <li><strong>On your phone only:</strong> your quiz answers, bladder diary, progress and settings. They are never sent to us.</li>
+          <li><strong>Only if you turn on reminders:</strong> our reminder service stores your phone's notification address, time zone, your 3 reminder times, how many sets you did today and your discreet setting. No name, email or diary.</li>
+          <li><strong>No ads and no trackers</strong> inside the app. We never sell your data.</li>
+          <li><strong>Delete everything:</strong> turn off reminders (removes them from our service), then More → Reset App Data.</li>
+        </ul>
+
+        <h4>30-day money-back guarantee</h4>
+        <p>If DryDay isn't right for you, email us within 30 days of your purchase and we'll refund 100%. One-time payment, no subscription.</p>
+
+        <h4>Contact</h4>
+        <p>Questions, access problems or refunds: <a href="mailto:${SUPPORT_EMAIL}?subject=DryDay">${SUPPORT_EMAIL}</a></p>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#about-close').addEventListener('click', () => modal.remove());
+  }
+
   function renderStats() {
     const daysDoneEl = document.getElementById('stat-days-done');
     const streakEl = document.getElementById('stat-streak');
     if (daysDoneEl) daysDoneEl.textContent = `${state.completedDays.length} / 7`;
     if (streakEl) streakEl.textContent = `${state.streak} ${state.streak === 1 ? 'day' : 'days'}`;
+    const diaryEl = document.getElementById('stat-diary');
+    if (diaryEl) {
+      const days = new Set(state.diary.map((e) => e.day)).size;
+      diaryEl.textContent = `${state.diary.length} ${state.diary.length === 1 ? 'entry' : 'entries'}`;
+      const note = document.getElementById('stat-diary-note');
+      if (note) note.textContent = state.diary.length ? `Logged on ${days} of 7 days. Logging 3 or more days gives a clear picture.` : 'Every entry helps you and your doctor see patterns.';
+    }
+    const nightEl = document.getElementById('night-count');
+    if (nightEl) nightEl.textContent = `${state.diary.filter((e) => e.category === 'trip' && /night/i.test(e.detail)).length} logged`;
     const bar = document.getElementById('stat-days-bar');
     if (bar) bar.style.width = `${Math.min(100, (state.completedDays.length / 7) * 100)}%`;
     const note = document.querySelector('.stat-note');
@@ -773,6 +968,8 @@
 
     renderPracticeCard();
     renderComeback();
+    renderSafetyCard();
+    renderRemindersSummary();
 
     const dayEntriesCount = state.diary.filter((e) => e.day === state.currentDay).length;
     if (homeDiaryCountEl) {
@@ -844,9 +1041,10 @@
           ${state.quizCompleted ? '<button type="button" class="secondary-btn" id="btn-cancel-quiz">Close</button>' : ''}
         </div>
         <h2 class="two-tone-heading" style="margin-top:8px;">Personalize Your<br /><span>Week 1 Plan</span></h2>
+        <button type="button" class="quiz-quick-btn" id="btn-quiz-quick">In a hurry? Answer only the 2 safety questions →</button>
 
         <form id="quiz-form">
-          <div class="quiz-question-block">
+          <div class="quiz-question-block quiz-optional">
             <span class="quiz-question-title">1. When do leaks or bladder worries usually happen?</span>
             <div class="quiz-options">
               <label class="radio-card"><input type="radio" name="leakType" value="stress" required checked /><span>When I cough, sneeze, laugh, lift, or exercise</span></label>
@@ -855,7 +1053,7 @@
             </div>
           </div>
 
-          <div class="quiz-question-block">
+          <div class="quiz-question-block quiz-optional">
             <span class="quiz-question-title">2. How often do leaks happen?</span>
             <div class="quiz-options">
               <label class="radio-card"><input type="radio" name="frequency" value="occasional" checked /><span>A few times a month or less</span></label>
@@ -864,7 +1062,7 @@
             </div>
           </div>
 
-          <div class="quiz-question-block">
+          <div class="quiz-question-block quiz-optional">
             <span class="quiz-question-title">3. How bothersome is this in your daily life?</span>
             <div class="quiz-options">
               <label class="radio-card"><input type="radio" name="bother" value="mild" checked /><span>Mild — I want to prevent it from getting worse</span></label>
@@ -873,7 +1071,7 @@
             </div>
           </div>
 
-          <div class="quiz-question-block">
+          <div class="quiz-question-block quiz-optional">
             <span class="quiz-question-title">4. Your age range:</span>
             <div class="quiz-options">
               <label class="radio-card"><input type="radio" name="age" value="40-49" /><span>40–49</span></label>
@@ -882,7 +1080,7 @@
             </div>
           </div>
 
-          <div class="quiz-question-block">
+          <div class="quiz-question-block quiz-optional">
             <span class="quiz-question-title">5. Menopause &amp; childbirth history:</span>
             <div class="quiz-options">
               <label class="radio-card"><input type="radio" name="lifeStage" value="peri_post" checked /><span>In perimenopause or post-menopause (no recent birth)</span></label>
@@ -891,7 +1089,7 @@
             </div>
           </div>
 
-          <div class="quiz-question-block">
+          <div class="quiz-question-block quiz-optional">
             <span class="quiz-question-title">6. What have you tried so far?</span>
             <div class="quiz-options">
               <label class="radio-card"><input type="radio" name="tried" value="none" checked /><span>Nothing structured yet</span></label>
@@ -929,6 +1127,14 @@
 
     document.body.appendChild(modal);
 
+    const quickBtn = modal.querySelector('#btn-quiz-quick');
+    quickBtn.addEventListener('click', () => {
+      const form = modal.querySelector('#quiz-form');
+      const quick = !form.classList.contains('quick');
+      form.classList.toggle('quick', quick);
+      quickBtn.textContent = quick ? '← Show all 8 questions (better personalization)' : 'In a hurry? Answer only the 2 safety questions →';
+    });
+
     const cancelBtn = modal.querySelector('#btn-cancel-quiz');
     if (cancelBtn) {
       cancelBtn.addEventListener('click', () => modal.remove());
@@ -937,7 +1143,8 @@
     modal.querySelector('#quiz-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const formData = new FormData(e.target);
-      const leakType = formData.get('leakType') || 'mixed';
+      const quick = e.target.classList.contains('quick');
+      const leakType = quick ? 'mixed' : (formData.get('leakType') || 'mixed');
       const lifeStage = formData.get('lifeStage') || 'peri_post';
       const hasRedFlag = formData.get('redFlags') === 'yes' || lifeStage === 'postpartum_under6w';
 
@@ -945,11 +1152,15 @@
       state.pattern = leakType;
       state.redFlagsDetected = hasRedFlag;
       state.tensionFlag = formData.get('tension') === 'yes';
+      state.tensionCleared = false;
+      state.redFlagCleared = false;
+      if (quick) formData.set('quickQuiz', 'yes');
       state.quizAnswers = Object.fromEntries(formData.entries());
       saveState();
 
       renderQuizStatus();
       renderHomeDayContent();
+      renderSafetyCard();
 
       showQuizResultInModal(modal, leakType, hasRedFlag);
     });
@@ -1027,6 +1238,12 @@
           <button type="button" class="secondary-btn" id="btn-close-session">Close</button>
         </div>
         <h2 class="two-tone-heading" style="margin-top:12px;">${dayData.title}</h2>
+        ${state.tensionFlag && !state.tensionCleared ? TENSION_HTML : ''}
+        ${state.redFlagsDetected && !state.redFlagCleared ? `
+        <div class="redflag-alert-box" role="note">
+          <strong>Safety reminder</strong>
+          <p style="margin-top:6px; font-size:0.95rem;">You reported a symptom that should be checked by your doctor or a pelvic floor physical therapist before you start the exercises. You can keep reading the lessons.</p>
+        </div>` : ''}
         <figure class="pose-panel">
           ${POSE_ART[dayPoseKey(dayData)]}
           <figcaption>${POSE_CAPTIONS[dayPoseKey(dayData)]}</figcaption>
@@ -1039,15 +1256,13 @@
           <p style="margin-top:4px; font-size:0.94rem;">${patternAdj.summaryNote}</p>
         </div>
         <p class="safety-note">${dayData.safetyNote || 'Stop if you feel pain. Never hold your breath or push down. If your symptoms get worse, talk to your doctor or a pelvic floor physical therapist.'}</p>
-        ${state.tensionFlag ? TENSION_HTML : ''}
-        ${state.redFlagsDetected ? `
-        <div class="redflag-alert-box" role="note">
-          <strong>Safety reminder</strong>
-          <p style="margin-top:6px; font-size:0.95rem;">You reported a symptom that should be checked by your doctor or a pelvic floor physical therapist before you start the exercises. You can keep reading the lessons.</p>
-        </div>` : ''}
+        ${safetyGate() === 'tension' ? `
+        <button type="button" id="btn-lesson-relax" class="primary-btn full-width">Do the 2-minute relaxation instead →</button>
+        <button type="button" id="btn-launch-player" class="text-btn full-width">A physical therapist cleared me: start the exercises</button>` : safetyGate() === 'redflag' ? `
+        <button type="button" id="btn-launch-player" class="secondary-btn full-width">My doctor said it's OK: start the session</button>` : `
         <button type="button" id="btn-launch-player" class="primary-btn full-width">
           Start 5-Min Guided Session →
-        </button>
+        </button>`}
       </div>
     `;
 
@@ -1060,8 +1275,10 @@
 
     modal.querySelector('#btn-launch-player').addEventListener('click', () => {
       primeVoice();
-      startInteractivePlayer(modal, dayData, patternAdj);
+      withSafetyGate(() => startInteractivePlayer(modal, dayData, patternAdj));
     });
+    const relaxBtn = modal.querySelector('#btn-lesson-relax');
+    if (relaxBtn) relaxBtn.addEventListener('click', () => { modal.remove(); openRelaxModal(); });
   }
 
   /**
@@ -1219,8 +1436,10 @@
     function renderStep(announce) {
       const step = steps[stepIndex];
       el('sp-block-count').textContent = step.blockIndex === 0
-        ? `Day ${dayData.day} · Starting`
-        : dayData.isMiniSet
+        ? (dayData.isRelax ? 'Relaxation · get ready' : `Day ${dayData.day} · Starting`)
+        : dayData.isRelax
+          ? 'Relaxation · no squeezing'
+          : dayData.isMiniSet
           ? `Day ${dayData.day} · Short set`
           : `Day ${dayData.day} · Set ${step.blockIndex} of ${step.totalBlocks}`;
       el('sp-position').textContent = step.position;
@@ -1278,6 +1497,17 @@
 
     function finishSession() {
       clearSessionTimer();
+      if (dayData.isRelax) {
+        speak('Well done. Relaxation complete.');
+        modal.querySelector('.modal-sheet').innerHTML = `
+          <div class="card-pill-tag">Relaxation Complete</div>
+          <h2 class="two-tone-heading">Nicely done.<br /><span>Stay soft.</span></h2>
+          <p class="card-body-text" style="margin-bottom:14px;">Slow belly breathing helps tense pelvic muscles let go. You can repeat it any time, especially when you feel tension or pain building.</p>
+          <div class="disclaimer-box"><strong>Next step:</strong><p style="margin-top:4px;">Book a visit with a pelvic floor physical therapist. Your <strong>Report for My Doctor</strong> (Progress tab) can help you explain what's going on.</p></div>
+          <button type="button" id="sp-done" class="primary-btn full-width">Back to Home</button>`;
+        modal.querySelector('#sp-done').addEventListener('click', () => { modal.remove(); switchTab('home'); });
+        return;
+      }
       const setsToday = addPracticeSet(dayData.isMiniSet ? 'short' : 'session', dayData.day);
       speak('Well done. Session complete.');
       if (!dayData.isMiniSet) markDayComplete(dayData.day);
@@ -1448,8 +1678,13 @@
       dot.classList.toggle('done', i < done);
     });
     if (btn) {
-      btn.disabled = done >= 3;
-      btn.textContent = done >= 3 ? 'All 3 done ✓' : 'Short set →';
+      const relax = typeof safetyGate === 'function' && safetyGate() === 'tension';
+      btn.disabled = !relax && done >= 3;
+      btn.textContent = relax ? 'Relaxation →' : done >= 3 ? 'All 3 done ✓' : 'Short set →';
+    }
+    if (text && typeof safetyGate === 'function' && safetyGate() === 'tension') {
+      text.textContent = 'Squeezing exercises are paused until a pelvic floor physical therapist says they are right for you. Meanwhile, the 2-minute relaxation routine is safe to do every day.';
+      return;
     }
     if (text && done >= 3) {
       text.textContent = 'You did all 3 sets today. Rest now and come back tomorrow. Steady practice for at least 3 months is what builds strength.';
@@ -1460,6 +1695,8 @@
 
   // Short set: 8 slow holds using today's slow-hold timing (never harder than the guided session)
   function openMiniSetModal() {
+    if (safetyGate() === 'tension') { openRelaxModal(); return; }
+    if (safetyGate()) { withSafetyGate(openMiniSetModal); return; }
     clearSessionTimer();
     const week1 = PROGRAM.weeks[0];
     // If a guided session was done today, use that day's timing; otherwise the current day
@@ -1751,6 +1988,7 @@
     box.hidden = false;
     const feedback = document.getElementById('diary-feedback');
     if (feedback) feedback.hidden = true;
+    try { box.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {}
   }
 
   function hideDiaryOptions() {
@@ -1790,7 +2028,7 @@
   function renderWeeklyChart() {
     const chartEl = document.getElementById('weekly-chart');
     if (!chartEl) return;
-    const cats = ['leak', 'urge', 'trip'];
+    const cats = ['leak', 'urge', 'trip', 'drink'];
     let max = 1;
     for (let d = 1; d <= 7; d++) {
       cats.forEach((c) => { max = Math.max(max, countFor(d, c)); });
@@ -1798,7 +2036,7 @@
     let html = '';
     for (let d = 1; d <= 7; d++) {
       const counts = cats.map((c) => countFor(d, c));
-      const label = `Day ${d}: ${counts[0]} leaks, ${counts[1]} strong urges, ${counts[2]} bathroom trips`;
+      const label = `Day ${d}: ${counts[0]} leaks, ${counts[1]} strong urges, ${counts[2]} bathroom trips, ${counts[3]} drinks`;
       html += `
         <div class="chart-day-col" role="img" aria-label="${label}">
           <div class="chart-bars-wrap">
@@ -1872,6 +2110,7 @@
     if (discreetT) discreetT.checked = !!state.settings.discreet;
     const dayStartSel = document.getElementById('setting-day-start');
     if (dayStartSel) dayStartSel.value = String(Number(state.settings.dayStart) || 0);
+    if (typeof renderRemindersSummary === 'function') renderRemindersSummary();
     document.querySelectorAll('[data-reminder-slot]').forEach((input) => {
       const i = parseInt(input.getAttribute('data-reminder-slot'), 10);
       input.value = state.settings.reminderTimes[i];
@@ -1906,7 +2145,9 @@
     const text = REMINDER_TEXTS[done === 0 ? 0 : 1];
     const banner = document.getElementById('reminder-banner');
     const bannerText = document.getElementById('reminder-banner-text');
-    if (bannerText) bannerText.textContent = text;
+    const bannerTitle = document.getElementById('reminder-banner-title');
+    if (bannerTitle) bannerTitle.textContent = state.settings.discreet ? 'Daily reminder' : 'DryDay reminder';
+    if (bannerText) bannerText.textContent = state.settings.discreet ? 'Time for your routine' : text;
     if (banner) banner.hidden = false;
     try {
       if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
@@ -2227,7 +2468,8 @@
 
     const status = document.getElementById('reminder-status');
     if (status) {
-      if (pushOn()) status.textContent = 'Phone notifications are on.';
+      if (pushOn()) status.textContent = `On: phone notifications at ${state.settings.reminderTimes.map(formatTime).join(', ')}.`;
+      else if (state.settings.reminderEnabled && support === 'ok') status.textContent = `On inside the app at ${state.settings.reminderTimes.map(formatTime).join(', ')}. Phone notifications aren\u2019t on yet.`;
       else if (support === 'ios-install') status.textContent = 'On iPhone, add DryDay to your Home Screen first to get notifications.';
       else if (support === 'denied') status.textContent = 'Notifications are blocked in your settings. Reminders will only show inside the app.';
       else if (support === 'unsupported') status.textContent = 'This browser can’t show notifications. Reminders will only show inside the app.';
@@ -2292,6 +2534,26 @@
       }
       if (e.target.closest('[data-action="go-diary"]')) {
         switchTab('progress');
+        return;
+      }
+      if (e.target.closest('[data-action="open-about"]')) {
+        openAbout();
+        return;
+      }
+      if (e.target.closest('[data-action="go-reminders"]')) {
+        switchTab('more');
+        setTimeout(() => {
+          const card = document.getElementById('reminders-card');
+          if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 50);
+        return;
+      }
+      if (e.target.closest('[data-action="relax"]')) {
+        openRelaxModal();
+        return;
+      }
+      if (e.target.closest('[data-action="clear-safety"]')) {
+        withSafetyGate(() => { renderSafetyCard(); showToast('Thanks. The exercises are unlocked.'); }, true);
         return;
       }
       if (e.target.closest('[data-action="technique-check"]')) {
@@ -2374,7 +2636,12 @@
       if (voiceT.checked) { primeVoice(); speak('Voice coach on. Squeeze and lift. Relax completely.', true); } else stopSpeaking();
     });
     const discreetT = document.getElementById('setting-discreet-toggle');
-    if (discreetT) discreetT.addEventListener('change', () => { state.settings.discreet = discreetT.checked; saveState(); syncPush(); });
+    if (discreetT) discreetT.addEventListener('change', () => {
+      state.settings.discreet = discreetT.checked;
+      saveState();
+      syncPush();
+      showToast(discreetT.checked ? 'Saved: reminders will only say "Daily reminder"' : 'Saved: reminders will mention DryDay');
+    });
     const dayStartSel = document.getElementById('setting-day-start');
     if (dayStartSel) dayStartSel.addEventListener('change', () => {
       state.settings.dayStart = Number(dayStartSel.value) || 0;
@@ -2410,6 +2677,8 @@
         state.settings.remindersShown.slots = state.settings.remindersShown.slots.filter((s) => s !== i);
         saveState();
         syncPush();
+        renderRemindersSummary();
+        showToast(`Saved: reminder ${i + 1} at ${formatTime(state.settings.reminderTimes[i])}${state.settings.reminderEnabled ? '' : '. Turn on Enable Reminders to get it.'}`);
       });
     });
 

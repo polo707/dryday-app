@@ -49,6 +49,13 @@
   - **Report for my doctor:** printable / Save as PDF / Share summary built on the phone: practice (last 14 days chart), questionnaire answers, diary summary by day (incl. night trips), all diary entries, technique self-check, suggested questions for the clinician.
   - **Milestones** (8, tied to real practice and the 3-month NICE goal) with a toast when unlocked; **Practice history** with date and time of each set; **Welcome back** card after a missed day and a no-guilt "fresh start" push the next morning; **My day starts at** (midnight–4 AM) for night owls, applied in the app and on the push server.
   - Tests: `tests/push.test.mjs` extended (discreet text, fresh start, night-owl day start); end-to-end browser test of every feature.
+- [x] **Update — Fixes from the AI customer test** (ux-testers, 5 personas: low-tech iPhone user, busy nurse, retiree with urges, skeptical buyer, woman with pelvic pain):
+  - **Safety gate:** pain / trouble-relaxing answers pause the squeezing exercises everywhere (Home safety card, lesson, short set, reminder banner) until she confirms a PT or doctor cleared her; meanwhile a 2-minute relaxed belly-breathing routine (no squeezing, not counted as a set). Red-flag answers ask "Did your doctor say it's OK?" before any session. Warnings moved to the top of lessons. Retaking the quiz resets clearances.
+  - **Discreet by default:** in-app banner and notifications say "Daily reminder · Time for your routine" when discreet is on (default on); settings text matches.
+  - **Reminders easier:** "Reminders: … · Set up/Change" shortcut on the Today's Practice card; toast confirmation on every saved time/toggle; status line shows the times.
+  - **Quiz:** "In a hurry? Answer only the 2 safety questions" (balanced plan); safety questions always asked.
+  - **Diary/Progress:** diary options scroll into view (clear of the bottom bar); Bladder Diary stat; drinks in the weekly chart; "Diary started" milestone at 3 entries; "Getting up at night?" tips card with night-trip count.
+  - **About, Privacy & Sources** (More): owner, how the program was written (and reviewer status), 8 linked sources, exactly what data is stored where, 30-day money-back guarantee and support email (same as the sales page).
 
 ## Files in the Repository
 1. `README.md`

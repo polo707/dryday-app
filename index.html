@@ -48,6 +48,8 @@
       <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8z"/><path d="M14 2.5V8h5.5M8.5 13h7M8.5 17h5"/></symbol>
       <symbol id="i-award" viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="m8.2 13.8-1.7 7.7L12 18.5l5.5 3-1.7-7.7"/></symbol>
       <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="5.5"/><circle cx="12" cy="12" r="1.5"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/></symbol>
+      <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v6M12 7.5v.5"/></symbol>
       <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
     </defs>
   </svg>
@@ -59,7 +61,7 @@
          ========================================== -->
     <div id="reminder-banner" class="reminder-banner" role="status" aria-live="polite" hidden>
       <div class="reminder-banner-text">
-        <strong>DryDay Reminder</strong>
+        <strong id="reminder-banner-title">Daily reminder</strong>
         <span id="reminder-banner-text">Your 5-minute routine is ready</span>
       </div>
       <div class="reminder-banner-actions">
@@ -189,6 +191,9 @@
             <button type="button" class="day-pill" data-day="7" role="tab" aria-selected="false">Day 7</button>
           </div>
 
+          <!-- Safety first: shown when the quiz found pain / red-flag symptoms -->
+          <article class="white-card safety-card" id="safety-card" hidden></article>
+
           <!-- Gentle "welcome back" after a missed day (no guilt) -->
           <article class="white-card comeback-card" id="comeback-card" hidden>
             <div class="white-card-header">
@@ -287,6 +292,7 @@
               <span class="muted-label">Keep going for at least 3 months</span>
               <button type="button" class="inline-pill-btn" id="btn-start-mini-set">Short set →</button>
             </div>
+            <button type="button" class="reminder-link" data-action="go-reminders" id="practice-reminders-link"><svg class="ico" aria-hidden="true"><use href="#i-bell"/></svg><span id="practice-reminders-text">Reminders: off · Set up</span></button>
           </article>
 
           <!-- Today's Habit Card -->
@@ -395,6 +401,11 @@
               <strong class="stat-value" id="stat-streak">0 days</strong>
               <span class="stat-note">Keep it going today</span>
             </div>
+            <div class="white-card stat-card stat-wide">
+              <span class="stat-label">Bladder Diary</span>
+              <strong class="stat-value" id="stat-diary">0 entries</strong>
+              <span class="stat-note" id="stat-diary-note">Every entry helps you and your doctor see patterns.</span>
+            </div>
           </div>
 
           <!-- 2-Tap Bladder Diary Logger -->
@@ -456,14 +467,32 @@
           <div class="white-card">
             <h3>Week 1 Activity Chart</h3>
             <p class="muted-small" style="margin-bottom:14px;">
-              Daily count of leaks, strong urges, and bathroom trips across Days 1–7.
+              Daily count of leaks, strong urges, bathroom trips and drinks across Days 1–7.
             </p>
             <div id="weekly-chart" class="weekly-chart"></div>
             <div class="chart-legend">
               <span><i class="legend-dot leak-dot"></i> Leaks</span>
               <span><i class="legend-dot urge-dot"></i> Strong Urges</span>
               <span><i class="legend-dot trip-dot"></i> Bathroom Trips</span>
+              <span><i class="legend-dot drink-dot"></i> Drinks</span>
             </div>
+          </div>
+
+          <!-- Night-time trips -->
+          <div class="white-card night-card">
+            <div class="white-card-header">
+              <div class="soft-icon-box" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-moon"/></svg></div>
+              <div class="white-card-title-wrap">
+                <h3>Getting Up at Night?</h3>
+                <span class="time-badge" id="night-count">0 logged</span>
+              </div>
+            </div>
+            <ul class="night-tips">
+              <li>Have your last big drink about 2 hours before bed, and drink enough earlier in the day.</li>
+              <li>Cut down on coffee, tea, cola and alcohol, especially in the afternoon and evening.</li>
+              <li>Empty your bladder right before you go to sleep.</li>
+              <li>Log night trips as <strong>Bathroom Trip → At night</strong>. If you get up 2 or more times most nights, tell your doctor: it can have causes worth checking, and your report shows these trips.</li>
+            </ul>
           </div>
 
           <!-- Week 1 Summary Comparing Day 1-2 with Day 6-7 -->
@@ -519,10 +548,10 @@
           </h1>
 
           <!-- Reminders Card -->
-          <div class="white-card">
+          <div class="white-card" id="reminders-card">
             <h3>Daily Practice Reminders</h3>
             <p class="muted-small" style="margin-bottom:14px;">
-              Pick 3 times a day for a discreet reminder: <em>"Your 5-minute routine is ready"</em> and <em>"Your 2-minute set is ready"</em>.
+              Pick 3 times a day that fit your routine. You'll get one reminder for each set you haven't done yet.
             </p>
 
             <div class="setting-item">
@@ -548,7 +577,7 @@
             <div class="setting-item">
               <div>
                 <strong>Discreet Notifications</strong>
-                <p class="muted-small">Notifications only say "Daily reminder", with no app name or health words.</p>
+                <p class="muted-small" id="discreet-help">On: reminders only say "Daily reminder · Time for your routine". Off: they say "DryDay · Your 5-minute routine is ready".</p>
               </div>
               <input type="checkbox" id="setting-discreet-toggle" class="toggle-checkbox" aria-label="Toggle discreet notifications" />
             </div>
@@ -631,6 +660,16 @@
               <button type="button" class="secondary-btn" data-action="open-quiz">
                 Retake Quiz
               </button>
+            </div>
+
+            <hr class="divider" />
+
+            <div class="setting-item">
+              <div>
+                <strong>About, Privacy &amp; Sources</strong>
+                <p class="muted-small">Who makes DryDay, where the advice comes from, your data, the 30-day guarantee and contact.</p>
+              </div>
+              <button type="button" class="secondary-btn" data-action="open-about">Read</button>
             </div>
 
             <hr class="divider" />
