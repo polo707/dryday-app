@@ -56,3 +56,20 @@ Todos los parámetros de ejercicios y contenidos educativos de **DryDay (Semana 
 | **Repeticiones por serie** | NICE indica mínimo **8 contracciones**; NHS Squeezy indica hasta 10 lentas + 10 rápidas. | **6 a 8 repeticiones lentas** + **5 a 8 repeticiones rápidas (1 s apretar / 2 s relajar)** por sesión guiada (~5 min). |
 | **Posición del cuerpo** | Mayo Clinic / CFA recomiendan empezar acostada o sentada porque es más fácil sentir el músculo sin gravedad, y luego pasar a estar de pie. | **Días 1–3:** Acostada o sentada cómoda. **Día 4:** Práctica guiada en las 3 posiciones (acostada, sentada, de pie). |
 | **Supresión de urgencia (Urge SOS)** | Algunas guías sugieren 5 contracciones rápidas; otras una contracción sostenida suave. | **5 contracciones rápidas suaves (1 s / 2 s)** seguidas de **respiración abdominal lenta (4 s inhalar / 6 s exhalar)** y distracción mental durante 60 segundos. |
+
+---
+
+## 3. Frecuencia diaria y duración (citas textuales verificadas)
+
+Fuente: NICE NG123 — Recommendations, sección 1.4 (https://www.nice.org.uk/guidance/ng123/chapter/Recommendations)
+
+- **1.4.4:** "Offer a trial of supervised pelvic floor muscle training of at least 3 months' duration as first-line treatment to women with stress or mixed urinary incontinence."
+- **1.4.5:** "Pelvic floor muscle training programmes should comprise at least 8 contractions performed 3 times per day."
+- **1.4.7:** "Continue an exercise programme if pelvic floor muscle training is beneficial."
+- **1.4.11:** "Offer bladder training lasting for a minimum of 6 weeks as first-line treatment to women with urgency or mixed urinary incontinence."
+
+**Cómo se aplica en DryDay:**
+- La sesión guiada del día cuenta como tanda 1 (todas las sesiones de la Semana 1 tienen al menos 8 contracciones lentas).
+- Tandas 2 y 3: "Short set" de 8 contracciones lentas con los mismos tiempos de la sesión de ese día (nunca más exigentes). Día 1: 3 s / 6 s; Días 2–7: 4 s / 6 s.
+- La app recuerda 3 veces por día (horarios elegidos por la usuaria) y explica en el Día 1 y el Día 7 que se recomienda practicar al menos 3 meses.
+- NICE recomienda entrenamiento **supervisado**. DryDay no reemplaza esa supervisión: el Día 1 sugiere consultar con el médico sobre una fisioterapeuta de suelo pélvico.

@@ -1296,3 +1296,41 @@ select:focus-visible {
 .modal-backdrop {
   padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 }
+
+/* Daily practice (3 sets per day) */
+.practice-dots {
+  display: flex;
+  gap: 10px;
+  margin: 4px 0 12px;
+}
+
+.practice-dot {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  background: var(--bg);
+  color: var(--muted);
+  border: 2px solid var(--border-soft);
+}
+
+.practice-dot.done {
+  background: var(--primary-dark);
+  border-color: var(--primary-dark);
+  color: #FFFFFF;
+}
+
+.inline-pill-btn[disabled] {
+  background: var(--bg);
+  color: var(--muted);
+  cursor: default;
+}
+
+.safety-note {
+  font-size: 0.92rem;
+  color: var(--muted);
+  margin: 0 0 16px;
+}

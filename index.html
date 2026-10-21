@@ -28,7 +28,7 @@
     <div id="reminder-banner" class="reminder-banner" role="status" aria-live="polite" hidden>
       <div class="reminder-banner-text">
         <strong>DryDay Reminder</strong>
-        <span>Your 5-minute routine is ready</span>
+        <span id="reminder-banner-text">Your 5-minute routine is ready</span>
       </div>
       <div class="reminder-banner-actions">
         <button type="button" id="btn-reminder-start" class="inline-pill-btn">Start</button>
@@ -179,6 +179,27 @@
               >
                 →
               </button>
+            </div>
+          </article>
+
+          <!-- Daily Practice Card: NICE NG123 recommends at least 8 contractions, 3 times per day -->
+          <article class="white-card practice-card" id="practice-card">
+            <div class="white-card-header">
+              <div class="soft-icon-box" aria-hidden="true">3×</div>
+              <div class="white-card-title-wrap">
+                <h3>Today's Practice</h3>
+                <span class="time-badge" id="practice-count-badge">0 of 3 sets</span>
+              </div>
+            </div>
+            <div class="practice-dots" id="practice-dots" aria-hidden="true">
+              <span class="practice-dot">1</span><span class="practice-dot">2</span><span class="practice-dot">3</span>
+            </div>
+            <p class="card-body-text" id="practice-text">
+              Health guidelines recommend at least 8 squeezes, 3 times a day. Your guided session is set 1. Add 2 short sets (about 2 minutes each) later in the day.
+            </p>
+            <div class="white-card-footer">
+              <span class="muted-label">Keep going for at least 3 months</span>
+              <button type="button" class="inline-pill-btn" id="btn-start-mini-set">Short set →</button>
             </div>
           </article>
 
@@ -375,19 +396,27 @@
 
           <!-- Reminders Card -->
           <div class="white-card">
-            <h3>Daily Routine Reminder</h3>
+            <h3>Daily Practice Reminders</h3>
             <p class="muted-small" style="margin-bottom:14px;">
-              Pick a time for a discreet reminder message: <em>"Your 5-minute routine is ready"</em>.
+              Pick 3 times a day for a discreet reminder: <em>"Your 5-minute routine is ready"</em> and <em>"Your 2-minute set is ready"</em>.
             </p>
 
             <div class="setting-item">
-              <label for="setting-reminder-enabled"><strong>Enable Daily Reminder</strong></label>
+              <label for="setting-reminder-enabled"><strong>Enable Reminders</strong></label>
               <input type="checkbox" id="setting-reminder-enabled" class="toggle-checkbox" />
             </div>
 
             <div class="setting-item" style="margin-top:8px;">
-              <label for="setting-reminder-time"><strong>Reminder Time</strong></label>
-              <input type="time" id="setting-reminder-time" class="time-input" value="09:00" />
+              <label for="setting-reminder-time-1"><strong>Set 1 · Guided session</strong></label>
+              <input type="time" id="setting-reminder-time-1" class="time-input" data-reminder-slot="0" value="09:00" />
+            </div>
+            <div class="setting-item">
+              <label for="setting-reminder-time-2"><strong>Set 2 · Short set</strong></label>
+              <input type="time" id="setting-reminder-time-2" class="time-input" data-reminder-slot="1" value="14:00" />
+            </div>
+            <div class="setting-item">
+              <label for="setting-reminder-time-3"><strong>Set 3 · Short set</strong></label>
+              <input type="time" id="setting-reminder-time-3" class="time-input" data-reminder-slot="2" value="19:00" />
             </div>
 
             <div class="disclaimer-box" style="margin-top:14px; margin-bottom:0; font-size:0.92rem;">

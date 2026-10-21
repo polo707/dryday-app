@@ -54,20 +54,34 @@
       lastCompletedDate: null,
       streak: 0,
       diary: [], // { id, day, category, detail, timeLabel, timestamp }
+      practiceLog: {}, // { 'YYYY-MM-DD': number of sets done that day (guided session + short sets) }
       settings: {
         sound: true,
         vibration: true,
         reminderEnabled: false,
         reminderTime: '09:00',
-        lastReminderShownDate: null
+        reminderTimes: ['09:00', '14:00', '19:00'],
+        lastReminderShownDate: null,
+        remindersShown: { date: null, slots: [] }
       }
     };
   }
 
-  let state = Object.assign(getDefaultState(), StorageHelper.get() || {});
-  state.settings = Object.assign(getDefaultState().settings, state.settings || {});
+  const savedState = StorageHelper.get() || {};
+  const savedSettings = savedState.settings || {};
+  let state = Object.assign(getDefaultState(), savedState);
+  state.settings = Object.assign(getDefaultState().settings, savedSettings);
+  if (!savedSettings.reminderTimes && savedSettings.reminderTime) {
+    // Older saves had a single reminder time: keep it as the first one
+    state.settings.reminderTimes = [savedSettings.reminderTime, '14:00', '19:00'];
+  }
   if (!Array.isArray(state.diary)) state.diary = [];
   if (!Array.isArray(state.completedDays)) state.completedDays = [];
+  if (!state.practiceLog || typeof state.practiceLog !== 'object') state.practiceLog = {};
+  if (!Array.isArray(state.settings.reminderTimes) || state.settings.reminderTimes.length !== 3) {
+    state.settings.reminderTimes = ['09:00', '14:00', '19:00'];
+  }
+  if (!state.settings.remindersShown) state.settings.remindersShown = { date: null, slots: [] };
 
   function saveState() {
     StorageHelper.set(state);
@@ -254,6 +268,8 @@
       const pAdj = PROGRAM.patternAdjustments[state.pattern] || PROGRAM.patternAdjustments.mixed;
       patternBadgeEl.textContent = state.quizCompleted ? pAdj.label : 'Tailored Daily Plan';
     }
+
+    renderPracticeCard();
 
     const dayEntriesCount = state.diary.filter((e) => e.day === state.currentDay).length;
     if (homeDiaryCountEl) {
@@ -499,6 +515,7 @@
           <strong>${patternAdj.label}:</strong>
           <p style="margin-top:4px; font-size:0.94rem;">${patternAdj.summaryNote}</p>
         </div>
+        <p class="safety-note">${dayData.safetyNote || 'Stop if you feel pain. Never hold your breath or push down. If your symptoms get worse, talk to your doctor or a pelvic floor physical therapist.'}</p>
         ${state.redFlagsDetected ? `
         <div class="redflag-alert-box" role="note">
           <strong>Safety reminder</strong>
@@ -530,7 +547,7 @@
   function buildSessionTimeline(dayData, patternAdj) {
     const blocks = [...dayData.blocks];
     // Add pattern-tailored bonus block on Days 2–7
-    if (dayData.day >= 2 && patternAdj && patternAdj.bonusBlock) {
+    if (!dayData.isMiniSet && dayData.day >= 2 && patternAdj && patternAdj.bonusBlock) {
       blocks.push({
         name: 'Brief Rest Before Pattern Bonus',
         position: 'Relaxed',
@@ -670,7 +687,9 @@
       const step = steps[stepIndex];
       el('sp-block-count').textContent = step.blockIndex === 0
         ? `Day ${dayData.day} · Starting`
-        : `Day ${dayData.day} · Set ${step.blockIndex} of ${step.totalBlocks}`;
+        : dayData.isMiniSet
+          ? `Day ${dayData.day} · Short set`
+          : `Day ${dayData.day} · Set ${step.blockIndex} of ${step.totalBlocks}`;
       el('sp-position').textContent = step.position;
       el('sp-block-name').textContent = step.blockName;
       el('sp-cue').textContent = step.cue;
@@ -720,19 +739,39 @@
 
     function finishSession() {
       clearSessionTimer();
-      markDayComplete(dayData.day);
+      const setsToday = addPracticeSet();
+      if (!dayData.isMiniSet) markDayComplete(dayData.day);
       playCueTone(700, 400);
       triggerVibration([80, 80, 160]);
+
+      const setsLine = setsToday >= 3
+        ? 'That makes 3 sets today. Great job — that is the daily amount health guidelines recommend.'
+        : `That makes ${setsToday} of 3 sets today. Do ${3 - setsToday === 1 ? '1 more short set' : '2 more short sets'} later today (about 2 minutes each) from the Home screen.`;
+
+      if (dayData.isMiniSet) {
+        modal.querySelector('.modal-sheet').innerHTML = `
+          <div class="card-pill-tag">Short Set Complete</div>
+          <h2 class="two-tone-heading">Set done.<br /><span>Well done!</span></h2>
+          <p class="card-body-text" style="margin-bottom:16px;">${setsLine}</p>
+          <button type="button" id="sp-done" class="primary-btn full-width">Back to Home</button>
+        `;
+        modal.querySelector('#sp-done').addEventListener('click', () => {
+          modal.remove();
+          switchTab('home');
+        });
+        return;
+      }
 
       const isLast = dayData.day >= PROGRAM.weeks[0].days.length;
       modal.querySelector('.modal-sheet').innerHTML = `
         <div class="card-pill-tag">Session Complete</div>
         <h2 class="two-tone-heading">Day ${dayData.day}<br /><span>Done. Well done!</span></h2>
-        <p class="card-body-text" style="margin-bottom:16px;">
+        <p class="card-body-text" style="margin-bottom:12px;">
           ${isLast
             ? 'You finished Week 1. Open the Progress tab to see your week.'
-            : 'Every short session helps your muscles learn. Come back tomorrow for the next day.'}
+            : 'Every session helps your muscles learn. Come back tomorrow for the next day.'}
         </p>
+        <p class="card-body-text" style="margin-bottom:16px;"><strong>${setsLine}</strong></p>
         <div class="disclaimer-box">
           <strong>Today's small habit:</strong>
           <p style="margin-top:4px;">${dayData.habit}</p>
@@ -796,7 +835,84 @@
     return `${y}-${m}-${d}`;
   }
 
+  // =====================================================
+  // DAILY PRACTICE: 3 SETS PER DAY
+  // NICE NG123 1.4.5: "at least 8 contractions performed 3 times per day";
+  // 1.4.4: a trial of at least 3 months. The guided session counts as set 1;
+  // two short sets of 8 slow holds complete the day.
+  // =====================================================
+  function setsDoneToday() {
+    return state.practiceLog[toDateKey(new Date())] || 0;
+  }
+
+  function addPracticeSet() {
+    const key = toDateKey(new Date());
+    state.practiceLog[key] = (state.practiceLog[key] || 0) + 1;
+    saveState();
+    renderPracticeCard();
+    return state.practiceLog[key];
+  }
+
+  function renderPracticeCard() {
+    const done = setsDoneToday();
+    const badge = document.getElementById('practice-count-badge');
+    const btn = document.getElementById('btn-start-mini-set');
+    const text = document.getElementById('practice-text');
+    if (badge) badge.textContent = `${Math.min(done, 3)} of 3 sets`;
+    document.querySelectorAll('#practice-dots .practice-dot').forEach((dot, i) => {
+      dot.classList.toggle('done', i < done);
+    });
+    if (btn) {
+      btn.disabled = done >= 3;
+      btn.textContent = done >= 3 ? 'All 3 done ✓' : 'Short set →';
+    }
+    if (text && done >= 3) {
+      text.textContent = 'You did all 3 sets today. Rest now and come back tomorrow. Steady practice for at least 3 months is what builds strength.';
+    } else if (text) {
+      text.textContent = 'Health guidelines recommend at least 8 squeezes, 3 times a day. Your guided session is set 1. Add 2 short sets (about 2 minutes each) later in the day.';
+    }
+  }
+
+  // Short set: 8 slow holds using today's slow-hold timing (never harder than the guided session)
+  function openMiniSetModal() {
+    clearSessionTimer();
+    const week1 = PROGRAM.weeks[0];
+    // If a guided session was done today, use that day's timing; otherwise the current day
+    const practicedDay = state.lastCompletedDate === toDateKey(new Date()) && state.lastSessionDay ? state.lastSessionDay : state.currentDay;
+    const dayData = week1.days.find((d) => d.day === practicedDay) || week1.days[0];
+    const firstHold = dayData.blocks.find((b) => !b.isRest && !b.isBreathing && b.holdSeconds >= 3) || { holdSeconds: 3, relaxSeconds: 6, position: 'Sitting or Lying Down' };
+
+    const miniDay = {
+      day: dayData.day,
+      title: 'Short Set',
+      habit: dayData.habit,
+      isMiniSet: true,
+      blocks: [
+        {
+          name: 'Short Set: 8 Slow Holds',
+          position: firstHold.position,
+          cue: `Squeeze and lift for ${firstHold.holdSeconds} seconds, then relax completely for ${firstHold.relaxSeconds} seconds. Breathe normally.`,
+          reps: 8,
+          holdSeconds: firstHold.holdSeconds,
+          relaxSeconds: firstHold.relaxSeconds
+        }
+      ]
+    };
+
+    const existing = document.getElementById('modal-session');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'modal-session';
+    modal.className = 'modal-backdrop';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.innerHTML = '<div class="modal-sheet"></div>';
+    document.body.appendChild(modal);
+    startInteractivePlayer(modal, miniDay, null);
+  }
+
   function markDayComplete(dayNumber) {
+    state.lastSessionDay = dayNumber;
     if (!state.completedDays.includes(dayNumber)) {
       state.completedDays.push(dayNumber);
       state.completedDays.sort((a, b) => a - b);
@@ -1152,39 +1268,54 @@
   // Reminders only work while the app is open (or open in the background
   // from the home screen). No server, no background push notifications.
   // =====================================================
-  const REMINDER_TEXT = 'Your 5-minute routine is ready';
+  const REMINDER_TEXTS = ['Your 5-minute routine is ready', 'Your 2-minute set is ready', 'Your 2-minute set is ready'];
 
   function syncSettingsControls() {
     const sound = document.getElementById('setting-sound-toggle');
     const vibe = document.getElementById('setting-vibration-toggle');
     const remOn = document.getElementById('setting-reminder-enabled');
-    const remTime = document.getElementById('setting-reminder-time');
     if (sound) sound.checked = !!state.settings.sound;
     if (vibe) vibe.checked = !!state.settings.vibration;
     if (remOn) remOn.checked = !!state.settings.reminderEnabled;
-    if (remTime) remTime.value = state.settings.reminderTime || '09:00';
+    document.querySelectorAll('[data-reminder-slot]').forEach((input) => {
+      const i = parseInt(input.getAttribute('data-reminder-slot'), 10);
+      input.value = state.settings.reminderTimes[i];
+    });
   }
 
   function checkReminder() {
     if (!state.unlocked || !state.disclaimerAccepted || !state.settings.reminderEnabled) return;
     const now = new Date();
     const today = toDateKey(now);
-    if (state.settings.lastReminderShownDate === today) return;
-    if (state.lastCompletedDate === today) return; // already did a session today
+    const shown = state.settings.remindersShown;
+    if (shown.date !== today) {
+      shown.date = today;
+      shown.slots = [];
+    }
+    const done = setsDoneToday();
 
-    const [h, m] = (state.settings.reminderTime || '09:00').split(':').map(Number);
-    const due = new Date(now);
-    due.setHours(h, m, 0, 0);
-    if (now < due) return;
+    // Show the latest due reminder whose set is not done yet (once per slot per day)
+    let slotToShow = -1;
+    state.settings.reminderTimes.forEach((time, i) => {
+      const [h, m] = (time || '09:00').split(':').map(Number);
+      const due = new Date(now);
+      due.setHours(h, m, 0, 0);
+      if (now >= due && done <= i && !shown.slots.includes(i)) slotToShow = i;
+    });
+    if (slotToShow < 0) return;
 
-    state.settings.lastReminderShownDate = today;
+    // Mark this and earlier slots as shown so we don't stack old reminders
+    for (let i = 0; i <= slotToShow; i++) if (!shown.slots.includes(i)) shown.slots.push(i);
     saveState();
 
+    const text = REMINDER_TEXTS[done === 0 ? 0 : 1];
     const banner = document.getElementById('reminder-banner');
+    const bannerText = document.getElementById('reminder-banner-text');
+    if (bannerText) bannerText.textContent = text;
     if (banner) banner.hidden = false;
     try {
       if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
-        new Notification('DryDay', { body: REMINDER_TEXT });
+        new Notification('DryDay', { body: text });
       }
     } catch (e) {}
   }
@@ -1303,19 +1434,28 @@
       });
     }
 
-    const remTime = document.getElementById('setting-reminder-time');
-    if (remTime) {
-      remTime.addEventListener('change', () => {
-        state.settings.reminderTime = remTime.value || '09:00';
-        state.settings.lastReminderShownDate = null;
+    document.querySelectorAll('[data-reminder-slot]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const i = parseInt(input.getAttribute('data-reminder-slot'), 10);
+        state.settings.reminderTimes[i] = input.value || ['09:00', '14:00', '19:00'][i];
+        state.settings.remindersShown.slots = state.settings.remindersShown.slots.filter((s) => s !== i);
         saveState();
       });
-    }
+    });
+
+    const btnMiniSet = document.getElementById('btn-start-mini-set');
+    if (btnMiniSet) btnMiniSet.addEventListener('click', openMiniSetModal);
 
     const banner = document.getElementById('reminder-banner');
     const bannerStart = document.getElementById('btn-reminder-start');
     const bannerDismiss = document.getElementById('btn-reminder-dismiss');
-    if (bannerStart) bannerStart.addEventListener('click', () => { banner.hidden = true; openDaySessionModal(state.currentDay); });
+    if (bannerStart) {
+      bannerStart.addEventListener('click', () => {
+        banner.hidden = true;
+        if (setsDoneToday() === 0) openDaySessionModal(state.currentDay);
+        else openMiniSetModal();
+      });
+    }
     if (bannerDismiss) bannerDismiss.addEventListener('click', () => { banner.hidden = true; });
 
     if (btnShowDisclaimer && modalDisclaimer) {

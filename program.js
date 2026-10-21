@@ -66,6 +66,9 @@ const PROGRAM = {
               <li><strong>Pushing down:</strong> Never bear down like having a bowel movement—always lift <em>upward and inward</em>.</li>
               <li><strong>Stopping urine midstream:</strong> Never do your exercises while sitting on the toilet passing urine. Clinical guidelines (NICE &amp; Mayo Clinic) warn this can keep your bladder from emptying fully and increase infection risk.</li>
             </ul>
+            <h4>How Often to Practice</h4>
+            <p>UK health guidelines (NICE) recommend <strong>at least 8 squeezes, 3 times a day</strong>, and sticking with it for <strong>at least 3 months</strong>. In DryDay, your guided session is set 1. The Home screen will remind you to add 2 short sets of about 2 minutes later in the day.</p>
+            <p>Muscles get stronger slowly, so don't worry if you don't notice a change in the first weeks. If you can, ask your doctor about seeing a pelvic floor physical therapist, who can check that you are squeezing the right muscles.</p>
           `,
           habit: "Start your Bladder Diary today: tap the Progress tab to log your bathroom trips, drinks, and any urges or leaks.",
           blocks: [
@@ -327,7 +330,7 @@ const PROGRAM = {
           lessonHtml: `
             <h4>Celebrating Your First Week</h4>
             <p>You made it to Day 7! Clinical guidelines (NICE &amp; Cochrane reviews) show that building full muscle thickness takes several weeks of steady practice—just like any other muscle in the body.</p>
-            <p>However, many women notice better awareness, fewer rushed trips, and stronger confidence with <em>The Knack</em> and <em>Urge SOS</em> right from the first week.</p>
+            <p>Keep doing your 3 sets a day. Guidelines recommend at least 3 months of regular practice before judging how well it works, and continuing if it helps you.</p>
           `,
           habit: "Open the Progress tab after this session to review your Week 1 streak and compare Days 1–2 with Days 6–7.",
           blocks: [
