@@ -1,10 +1,12 @@
 /**
- * DryDay — Main Application Controller (Up to Phase 4)
- * Features:
- * - Safe localStorage wrapper with try/catch
- * - First-launch Access Gate (DRYDAY2026) & Medical Disclaimer
- * - Complete 1-Minute Pattern & Red-Flag Safety Quiz
- * - Week 1 (Days 1–7) Content, Lesson Viewer & Interactive Guided Session Player
+ * DryDay — Main Application Controller (Complete through Phase 5)
+ * Includes:
+ * - Access Code Gate (DRYDAY2026) & Medical Disclaimer
+ * - 1-Minute Pattern & Safety Red-Flag Quiz
+ * - Week 1 Guided Session Player (Animated circle, audio/vibration cues, pause/skip)
+ * - Persistent 60-Second Urge SOS Routine on every screen
+ * - 2-Tap Bladder Diary, Day View, Weekly Chart & Day 1-2 vs. Day 6-7 Comparison
+ * - Discreet Local Reminders & Settings
  */
 
 (function () {
@@ -51,23 +53,27 @@
       completedDays: [],
       lastCompletedDate: null,
       streak: 0,
-      diary: [],
+      diary: [], // { id, day, category, detail, timeLabel, timestamp }
       settings: {
         sound: true,
         vibration: true,
-        reminderTime: '09:00'
+        reminderEnabled: false,
+        reminderTime: '09:00',
+        lastReminderShownDate: null
       }
     };
   }
 
   let state = Object.assign(getDefaultState(), StorageHelper.get() || {});
-  state.settings = Object.assign(getDefaultState().settings, (state.settings || {}));
+  state.settings = Object.assign(getDefaultState().settings, state.settings || {});
+  if (!Array.isArray(state.diary)) state.diary = [];
+  if (!Array.isArray(state.completedDays)) state.completedDays = [];
 
   function saveState() {
     StorageHelper.set(state);
   }
 
-  // Gentle Web Audio API chime (no external audio files required)
+  // Web Audio API gentle cue tone
   let audioCtx = null;
   function playCueTone(freq = 520, durationMs = 180) {
     if (!state.settings.sound) return;
@@ -89,21 +95,17 @@
       gain.connect(audioCtx.destination);
       osc.start();
       osc.stop(audioCtx.currentTime + durationMs / 1000);
-    } catch (e) {
-      // Ignore audio errors if blocked by browser autoplay policy
-    }
+    } catch (e) {}
   }
 
   function triggerVibration(pattern = 80) {
     if (!state.settings.vibration) return;
     try {
-      if (navigator.vibrate) {
-        navigator.vibrate(pattern);
-      }
+      if (navigator.vibrate) navigator.vibrate(pattern);
     } catch (e) {}
   }
 
-  // DOM References
+  // DOM Elements
   const screenAccess = document.getElementById('screen-access');
   const screenDisclaimer = document.getElementById('screen-disclaimer');
   const appShell = document.getElementById('app-shell');
@@ -126,6 +128,7 @@
   const btnCloseDisclaimerModal = document.getElementById('btn-close-disclaimer-modal');
   const btnResetData = document.getElementById('btn-reset-data');
   const btnStartToday = document.getElementById('btn-start-today');
+  const btnUrgeSosTop = document.getElementById('btn-urge-sos-top');
 
   function updateGreeting() {
     const greetingEl = document.getElementById('greeting-text');
@@ -160,8 +163,9 @@
     renderHomeDayContent();
     renderPlanList();
     renderQuizStatus();
+    renderDiaryAndProgress();
+    syncSettingsControls();
 
-    // Prompt quiz automatically right after first disclaimer acceptance
     if (!state.quizCompleted && !document.getElementById('modal-quiz')) {
       openQuizModal();
     }
@@ -179,6 +183,12 @@
       if (isActive) btn.setAttribute('aria-current', 'page');
       else btn.removeAttribute('aria-current');
     });
+
+    if (targetTab === 'progress') {
+      const selectEl = document.getElementById('diary-day-select');
+      if (selectEl) selectEl.value = String(state.currentDay);
+      renderDiaryAndProgress();
+    }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -230,11 +240,11 @@
     const durationEl = document.getElementById('today-duration');
     const habitTextEl = document.getElementById('today-habit-text');
     const patternBadgeEl = document.getElementById('today-pattern-badge');
+    const homeDiaryCountEl = document.getElementById('home-diary-count');
+    const diaryActiveDayLabel = document.getElementById('diary-active-day-label');
 
     const isDone = state.completedDays.includes(dayData.day);
-    if (weekLabel) {
-      weekLabel.textContent = `Week 1 · Day ${dayData.day}${isDone ? ' (Completed ✓)' : ''}`;
-    }
+    if (weekLabel) weekLabel.textContent = `Week 1 · Day ${dayData.day}${isDone ? ' (Completed ✓)' : ''}`;
     if (titleEl) titleEl.textContent = dayData.title;
     if (summaryEl) summaryEl.textContent = dayData.summary;
     if (durationEl) durationEl.textContent = dayData.duration;
@@ -244,28 +254,53 @@
       const pAdj = PROGRAM.patternAdjustments[state.pattern] || PROGRAM.patternAdjustments.mixed;
       patternBadgeEl.textContent = state.quizCompleted ? pAdj.label : 'Tailored Daily Plan';
     }
+
+    const dayEntriesCount = state.diary.filter((e) => e.day === state.currentDay).length;
+    if (homeDiaryCountEl) {
+      homeDiaryCountEl.textContent = `Day ${state.currentDay} entries: ${dayEntriesCount}`;
+    }
+    if (diaryActiveDayLabel) {
+      diaryActiveDayLabel.textContent = `Logging for Day ${state.currentDay}`;
+    }
   }
 
   function renderPlanList() {
     if (typeof PROGRAM === 'undefined') return;
     const listEl = document.getElementById('plan-week1-list');
-    if (!listEl) return;
+    const futureEl = document.getElementById('plan-future-weeks');
 
-    const week1 = PROGRAM.weeks[0];
-    listEl.innerHTML = week1.days
-      .map((d) => {
-        const isDone = state.completedDays.includes(d.day);
-        return `
-          <button type="button" class="plan-day-item ${isDone ? 'done' : ''}" data-open-day="${d.day}">
+    if (listEl) {
+      const week1 = PROGRAM.weeks[0];
+      listEl.innerHTML = week1.days
+        .map((d) => {
+          const isDone = state.completedDays.includes(d.day);
+          return `
+            <button type="button" class="plan-day-item ${isDone ? 'done' : ''}" data-open-day="${d.day}">
+              <div class="plan-day-left">
+                <strong>Day ${d.day}: ${d.title}</strong>
+                <span>${d.duration} · Lesson + Guided Exercise</span>
+              </div>
+              <span class="plan-day-badge">${isDone ? 'Done ✓' : 'Start →'}</span>
+            </button>
+          `;
+        })
+        .join('');
+    }
+
+    if (futureEl) {
+      const futureWeeks = PROGRAM.weeks.slice(1);
+      futureEl.innerHTML = futureWeeks
+        .map((w) => `
+          <div class="plan-day-item" style="opacity:0.85;">
             <div class="plan-day-left">
-              <strong>Day ${d.day}: ${d.title}</strong>
-              <span>${d.duration} · Lesson + Guided Exercise</span>
+              <strong>${w.title}</strong>
+              <span>${w.description}</span>
             </div>
-            <span class="plan-day-badge">${isDone ? 'Done ✓' : 'Start →'}</span>
-          </button>
-        `;
-      })
-      .join('');
+            <span class="plan-day-badge">Week ${w.weekNumber}</span>
+          </div>
+        `)
+        .join('');
+    }
   }
 
   // =====================================================
@@ -282,8 +317,11 @@
     modal.setAttribute('aria-modal', 'true');
     modal.innerHTML = `
       <div class="modal-sheet">
-        <div class="quiz-progress-text">1-Minute Personalization &amp; Safety Check</div>
-        <h2 class="two-tone-heading">Personalize Your<br /><span>Week 1 Plan</span></h2>
+        <div class="status-row">
+          <span class="quiz-progress-text" style="margin-bottom:0;">1-Minute Personalization</span>
+          ${state.quizCompleted ? '<button type="button" class="secondary-btn" id="btn-cancel-quiz">Close</button>' : ''}
+        </div>
+        <h2 class="two-tone-heading" style="margin-top:8px;">Personalize Your<br /><span>Week 1 Plan</span></h2>
 
         <form id="quiz-form">
           <div class="quiz-question-block">
@@ -357,6 +395,11 @@
     `;
 
     document.body.appendChild(modal);
+
+    const cancelBtn = modal.querySelector('#btn-cancel-quiz');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => modal.remove());
+    }
 
     modal.querySelector('#quiz-form').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -730,6 +773,7 @@
       saveState();
       renderToggles();
       if (state.settings.sound) playCueTone(520, 150);
+      syncSettingsControls();
     });
 
     el('sp-vibe').addEventListener('click', () => {
@@ -737,6 +781,7 @@
       saveState();
       renderToggles();
       triggerVibration(60);
+      syncSettingsControls();
     });
 
     renderToggles();
@@ -774,6 +819,374 @@
     renderStats();
     renderHomeDayContent();
     renderPlanList();
+    renderDiaryAndProgress();
+  }
+
+  // =====================================================
+  // PHASE 5: 60-SECOND URGE SOS
+  // Stop & stay still → 5 quick squeezes → slow belly breathing (4 in / 6 out)
+  // → distraction, then walk calmly (see CONTENT_SOURCES.md).
+  // =====================================================
+  let sosTimer = null;
+
+  function clearSosTimer() {
+    if (sosTimer) {
+      clearInterval(sosTimer);
+      sosTimer = null;
+    }
+  }
+
+  const SOS_STAGES = [
+    {
+      title: 'Stop and stay still',
+      text: "Don't rush to the bathroom. Stand still, or sit down if a chair is close. Relax your shoulders."
+    },
+    {
+      title: '5 quick squeezes',
+      text: 'Squeeze and lift quickly for 1 second, then let go for 2 seconds. This helps calm your bladder muscle.'
+    },
+    {
+      title: 'Slow belly breathing',
+      text: 'Breathe in gently for 4 seconds, and out slowly for 6 seconds. Let the wave pass.'
+    },
+    {
+      title: 'Distract your mind',
+      text: 'Count backward from 100 by 7s: 100, 93, 86, 79… When the urge fades, walk calmly to the bathroom if you still need to.'
+    }
+  ];
+
+  // What the circle shows for each second (0–59) of the routine
+  function sosCueForSecond(t) {
+    const stage = Math.floor(t / 15);
+    const s = t % 15;
+    if (stage === 1) {
+      const squeeze = s % 3 === 0;
+      return { stage, label: squeeze ? 'Squeeze' : 'Relax', cls: squeeze ? 'phase-squeeze' : 'phase-relax', tone: squeeze ? 620 : null };
+    }
+    if (stage === 2) {
+      const inhale = s % 10 < 4;
+      const startOfPhase = s % 10 === 0 || s % 10 === 4;
+      return { stage, label: inhale ? 'Breathe In' : 'Breathe Out', cls: inhale ? 'phase-squeeze' : 'phase-relax', tone: startOfPhase ? (inhale ? 520 : 420) : null };
+    }
+    return { stage, label: stage === 0 ? 'Stay Still' : 'Count Back', cls: 'phase-rest', tone: s === 0 ? 480 : null };
+  }
+
+  function openUrgeSosModal() {
+    clearSosTimer();
+    const existing = document.getElementById('modal-sos');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-sos';
+    modal.className = 'modal-backdrop';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'sos-title');
+    document.body.appendChild(modal);
+
+    function close() {
+      clearSosTimer();
+      modal.remove();
+    }
+
+    function runRoutine() {
+      clearSosTimer();
+      let t = 0;
+      modal.innerHTML = `
+        <div class="modal-sheet">
+          <div class="status-row">
+            <span class="card-pill-tag" style="margin-bottom:0;">60-Second Urge SOS</span>
+            <button type="button" class="secondary-btn" id="sos-close">Close</button>
+          </div>
+          <h2 class="two-tone-heading" id="sos-title" style="margin-top:12px;">Breathe. The wave<br /><span>will pass.</span></h2>
+          <div class="sos-step-card">
+            <strong id="sos-step-title"></strong>
+            <span id="sos-step-text"></span>
+          </div>
+          <div class="session-player-box">
+            <div class="circle-stage">
+              <div class="breathing-circle phase-rest" id="sos-circle">
+                <span class="circle-phase-label" id="sos-phase"></span>
+                <span class="circle-timer-num" id="sos-timer" aria-hidden="true">60</span>
+              </div>
+            </div>
+            <div class="session-rep-counter" id="sos-stage-count"></div>
+            <div class="session-progress-bar" aria-hidden="true"><div class="session-progress-fill" id="sos-progress"></div></div>
+            <p class="sr-only" id="sos-live" aria-live="polite"></p>
+          </div>
+        </div>
+      `;
+      modal.querySelector('#sos-close').addEventListener('click', close);
+
+      let lastStage = -1;
+      function render() {
+        const cue = sosCueForSecond(t);
+        if (cue.stage !== lastStage) {
+          lastStage = cue.stage;
+          modal.querySelector('#sos-step-title').textContent = SOS_STAGES[cue.stage].title;
+          modal.querySelector('#sos-step-text').textContent = SOS_STAGES[cue.stage].text;
+          modal.querySelector('#sos-stage-count').textContent = `Step ${cue.stage + 1} of 4`;
+          modal.querySelector('#sos-live').textContent = SOS_STAGES[cue.stage].title;
+          triggerVibration(80);
+        }
+        const circle = modal.querySelector('#sos-circle');
+        circle.classList.remove('phase-squeeze', 'phase-relax', 'phase-rest');
+        circle.classList.add(cue.cls);
+        modal.querySelector('#sos-phase').textContent = cue.label;
+        modal.querySelector('#sos-timer').textContent = 60 - t;
+        modal.querySelector('#sos-progress').style.width = `${(t / 60) * 100}%`;
+        if (cue.tone) playCueTone(cue.tone, 160);
+      }
+
+      render();
+      sosTimer = setInterval(() => {
+        t += 1;
+        if (t >= 60) {
+          finish();
+        } else {
+          render();
+        }
+      }, 1000);
+    }
+
+    function finish() {
+      clearSosTimer();
+      playCueTone(700, 350);
+      modal.innerHTML = `
+        <div class="modal-sheet">
+          <div class="card-pill-tag">Well done</div>
+          <h2 class="two-tone-heading">You stayed<br /><span>in control.</span></h2>
+          <p class="card-body-text" style="margin-bottom:16px;">
+            If you still need the bathroom, walk there calmly now. If the urge comes back, you can repeat the routine.
+          </p>
+          <div class="session-controls-row">
+            <button type="button" class="secondary-btn" id="sos-repeat">Repeat</button>
+            <button type="button" class="primary-btn" id="sos-log">Log this urge</button>
+          </div>
+          <button type="button" class="danger-outline-btn full-width" id="sos-done">Close</button>
+        </div>
+      `;
+      modal.querySelector('#sos-repeat').addEventListener('click', runRoutine);
+      modal.querySelector('#sos-done').addEventListener('click', close);
+      modal.querySelector('#sos-log').addEventListener('click', () => {
+        addDiaryEntry('urge', 'Calmed with Urge SOS');
+        close();
+      });
+    }
+
+    runRoutine();
+  }
+
+  // =====================================================
+  // PHASE 5: 2-TAP BLADDER DIARY
+  // =====================================================
+  const DIARY_CATEGORIES = {
+    leak: {
+      label: 'Leak',
+      question: 'How big was the leak?',
+      options: ['Small (a few drops)', 'Medium (damp)', 'Large (soaked)']
+    },
+    urge: {
+      label: 'Strong Urge',
+      question: 'How did it go?',
+      options: ['Strong, but I waited', 'Very strong, I had to rush']
+    },
+    trip: {
+      label: 'Bathroom Trip',
+      question: 'What kind of trip?',
+      options: ['I really needed to go', 'Just in case', 'At night']
+    },
+    drink: {
+      label: 'Drink',
+      question: 'What did you drink?',
+      options: ['Water', 'Coffee or Tea', 'Soda or Juice', 'Alcohol', 'Other']
+    }
+  };
+
+  function escapeHtml(text) {
+    return String(text).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function addDiaryEntry(category, detail) {
+    const now = new Date();
+    const entry = {
+      id: `${now.getTime()}-${Math.random().toString(36).slice(2, 7)}`,
+      day: state.currentDay,
+      category,
+      detail,
+      timeLabel: now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      timestamp: now.getTime()
+    };
+    state.diary.push(entry);
+    saveState();
+
+    const feedback = document.getElementById('diary-feedback');
+    if (feedback) {
+      feedback.textContent = `Saved: ${DIARY_CATEGORIES[category].label} · ${detail} at ${entry.timeLabel} (Day ${entry.day})`;
+      feedback.hidden = false;
+    }
+    const selectEl = document.getElementById('diary-day-select');
+    if (selectEl) selectEl.value = String(entry.day);
+    renderDiaryAndProgress();
+    renderHomeDayContent();
+    triggerVibration(40);
+  }
+
+  function showDiaryOptions(category) {
+    const box = document.getElementById('diary-suboptions');
+    if (!box) return;
+    document.querySelectorAll('.diary-cat-btn').forEach((b) => {
+      b.classList.toggle('active', b.getAttribute('data-diary-cat') === category);
+    });
+    const cat = DIARY_CATEGORIES[category];
+    box.innerHTML = `
+      <span class="diary-suboptions-title">${cat.question}</span>
+      <div class="diary-sub-grid">
+        ${cat.options.map((o) => `<button type="button" class="diary-sub-btn" data-diary-save="${category}" data-diary-detail="${escapeHtml(o)}">${escapeHtml(o)}</button>`).join('')}
+      </div>
+    `;
+    box.hidden = false;
+    const feedback = document.getElementById('diary-feedback');
+    if (feedback) feedback.hidden = true;
+  }
+
+  function hideDiaryOptions() {
+    const box = document.getElementById('diary-suboptions');
+    if (box) box.hidden = true;
+    document.querySelectorAll('.diary-cat-btn').forEach((b) => b.classList.remove('active'));
+  }
+
+  function countFor(day, category) {
+    return state.diary.filter((e) => e.day === day && e.category === category).length;
+  }
+
+  function renderDiaryEntries() {
+    const listEl = document.getElementById('diary-day-entries');
+    const selectEl = document.getElementById('diary-day-select');
+    if (!listEl || !selectEl) return;
+    const day = parseInt(selectEl.value, 10) || state.currentDay;
+    const entries = state.diary
+      .filter((e) => e.day === day)
+      .sort((a, b) => a.timestamp - b.timestamp);
+
+    if (!entries.length) {
+      listEl.innerHTML = `<p class="muted-small">No entries for Day ${day} yet.</p>`;
+      return;
+    }
+
+    listEl.innerHTML = entries
+      .map((e) => `
+        <div class="diary-entry-row">
+          <span><strong>${escapeHtml(e.timeLabel)}</strong> · ${DIARY_CATEGORIES[e.category] ? DIARY_CATEGORIES[e.category].label : ''} · ${escapeHtml(e.detail)}</span>
+          <button type="button" class="diary-entry-delete" data-diary-delete="${escapeHtml(e.id)}" aria-label="Delete this entry">Delete</button>
+        </div>
+      `)
+      .join('');
+  }
+
+  function renderWeeklyChart() {
+    const chartEl = document.getElementById('weekly-chart');
+    if (!chartEl) return;
+    const cats = ['leak', 'urge', 'trip'];
+    let max = 1;
+    for (let d = 1; d <= 7; d++) {
+      cats.forEach((c) => { max = Math.max(max, countFor(d, c)); });
+    }
+    let html = '';
+    for (let d = 1; d <= 7; d++) {
+      const counts = cats.map((c) => countFor(d, c));
+      const label = `Day ${d}: ${counts[0]} leaks, ${counts[1]} strong urges, ${counts[2]} bathroom trips`;
+      html += `
+        <div class="chart-day-col" role="img" aria-label="${label}">
+          <div class="chart-bars-wrap">
+            ${cats.map((c, i) => `<span class="chart-bar ${c}-bar" style="height:${Math.round((counts[i] / max) * 100)}%"></span>`).join('')}
+          </div>
+          <span class="chart-day-label">D${d}</span>
+        </div>
+      `;
+    }
+    chartEl.innerHTML = html;
+  }
+
+  function renderComparison() {
+    const box = document.getElementById('week1-comparison-box');
+    if (!box) return;
+    const early = [1, 2];
+    const late = [6, 7];
+    const hasEarly = state.diary.some((e) => early.includes(e.day));
+    const hasLate = state.diary.some((e) => late.includes(e.day));
+
+    if (!hasEarly || !hasLate) {
+      box.innerHTML = `<p class="card-body-text">Log in your diary on Days 1–2 and again on Days 6–7 to see your comparison here.</p>`;
+      return;
+    }
+
+    const avg = (days, cat) => (days.reduce((sum, d) => sum + countFor(d, cat), 0) / days.length).toFixed(1);
+    const rows = [
+      ['leak', 'Leaks per day'],
+      ['urge', 'Strong urges per day'],
+      ['trip', 'Bathroom trips per day']
+    ];
+    box.innerHTML = `
+      <table class="comparison-table">
+        <thead><tr><th scope="col">Average</th><th scope="col">Days 1–2</th><th scope="col">Days 6–7</th></tr></thead>
+        <tbody>
+          ${rows.map(([cat, label]) => `<tr><td>${label}</td><td>${avg(early, cat)}</td><td>${avg(late, cat)}</td></tr>`).join('')}
+        </tbody>
+      </table>
+      <p class="muted-small">Small changes are normal in Week 1. Muscle strength builds over several weeks of steady practice.</p>
+    `;
+  }
+
+  function renderDiaryAndProgress() {
+    renderStats();
+    renderDiaryEntries();
+    renderWeeklyChart();
+    renderComparison();
+    const diaryActiveDayLabel = document.getElementById('diary-active-day-label');
+    if (diaryActiveDayLabel) diaryActiveDayLabel.textContent = `Logging for Day ${state.currentDay}`;
+  }
+
+  // =====================================================
+  // PHASE 5: DISCREET REMINDERS & SETTINGS
+  // Reminders only work while the app is open (or open in the background
+  // from the home screen). No server, no background push notifications.
+  // =====================================================
+  const REMINDER_TEXT = 'Your 5-minute routine is ready';
+
+  function syncSettingsControls() {
+    const sound = document.getElementById('setting-sound-toggle');
+    const vibe = document.getElementById('setting-vibration-toggle');
+    const remOn = document.getElementById('setting-reminder-enabled');
+    const remTime = document.getElementById('setting-reminder-time');
+    if (sound) sound.checked = !!state.settings.sound;
+    if (vibe) vibe.checked = !!state.settings.vibration;
+    if (remOn) remOn.checked = !!state.settings.reminderEnabled;
+    if (remTime) remTime.value = state.settings.reminderTime || '09:00';
+  }
+
+  function checkReminder() {
+    if (!state.unlocked || !state.disclaimerAccepted || !state.settings.reminderEnabled) return;
+    const now = new Date();
+    const today = toDateKey(now);
+    if (state.settings.lastReminderShownDate === today) return;
+    if (state.lastCompletedDate === today) return; // already did a session today
+
+    const [h, m] = (state.settings.reminderTime || '09:00').split(':').map(Number);
+    const due = new Date(now);
+    due.setHours(h, m, 0, 0);
+    if (now < due) return;
+
+    state.settings.lastReminderShownDate = today;
+    saveState();
+
+    const banner = document.getElementById('reminder-banner');
+    if (banner) banner.hidden = false;
+    try {
+      if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+        new Notification('DryDay', { body: REMINDER_TEXT });
+      }
+    } catch (e) {}
   }
 
   function bindEvents() {
@@ -813,6 +1226,7 @@
         state.currentDay = parseInt(pill.getAttribute('data-day'), 10) || 1;
         saveState();
         renderHomeDayContent();
+        renderDiaryAndProgress();
       });
     });
 
@@ -820,10 +1234,18 @@
       btnStartToday.addEventListener('click', () => openDaySessionModal(state.currentDay));
     }
 
-    // Delegated clicks: quiz buttons and Plan tab day rows
+    if (btnUrgeSosTop) {
+      btnUrgeSosTop.addEventListener('click', openUrgeSosModal);
+    }
+
+    // Delegated clicks: quiz, Plan rows, diary taps, diary delete, go-to-diary
     document.addEventListener('click', (e) => {
       if (e.target.closest('[data-action="open-quiz"]')) {
         openQuizModal();
+        return;
+      }
+      if (e.target.closest('[data-action="go-diary"]')) {
+        switchTab('progress');
         return;
       }
       const dayRow = e.target.closest('[data-open-day]');
@@ -833,19 +1255,74 @@
         saveState();
         renderHomeDayContent();
         openDaySessionModal(day);
+        return;
+      }
+      const catBtn = e.target.closest('[data-diary-cat]');
+      if (catBtn) {
+        showDiaryOptions(catBtn.getAttribute('data-diary-cat'));
+        return;
+      }
+      const saveBtn = e.target.closest('[data-diary-save]');
+      if (saveBtn) {
+        addDiaryEntry(saveBtn.getAttribute('data-diary-save'), saveBtn.getAttribute('data-diary-detail'));
+        hideDiaryOptions();
+        return;
+      }
+      const delBtn = e.target.closest('[data-diary-delete]');
+      if (delBtn) {
+        const id = delBtn.getAttribute('data-diary-delete');
+        state.diary = state.diary.filter((entry) => entry.id !== id);
+        saveState();
+        const feedback = document.getElementById('diary-feedback');
+        if (feedback) feedback.hidden = true;
+        renderDiaryAndProgress();
+        renderHomeDayContent();
       }
     });
 
-    if (btnShowDisclaimer && modalDisclaimer) {
-      btnShowDisclaimer.addEventListener('click', () => {
-        modalDisclaimer.hidden = false;
+    const daySelect = document.getElementById('diary-day-select');
+    if (daySelect) daySelect.addEventListener('change', renderDiaryEntries);
+
+    // Settings
+    const sound = document.getElementById('setting-sound-toggle');
+    if (sound) sound.addEventListener('change', () => { state.settings.sound = sound.checked; saveState(); });
+
+    const vibe = document.getElementById('setting-vibration-toggle');
+    if (vibe) vibe.addEventListener('change', () => { state.settings.vibration = vibe.checked; saveState(); triggerVibration(60); });
+
+    const remOn = document.getElementById('setting-reminder-enabled');
+    if (remOn) {
+      remOn.addEventListener('change', () => {
+        state.settings.reminderEnabled = remOn.checked;
+        saveState();
+        try {
+          if (remOn.checked && 'Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+          }
+        } catch (e) {}
       });
     }
 
-    if (btnCloseDisclaimerModal && modalDisclaimer) {
-      btnCloseDisclaimerModal.addEventListener('click', () => {
-        modalDisclaimer.hidden = true;
+    const remTime = document.getElementById('setting-reminder-time');
+    if (remTime) {
+      remTime.addEventListener('change', () => {
+        state.settings.reminderTime = remTime.value || '09:00';
+        state.settings.lastReminderShownDate = null;
+        saveState();
       });
+    }
+
+    const banner = document.getElementById('reminder-banner');
+    const bannerStart = document.getElementById('btn-reminder-start');
+    const bannerDismiss = document.getElementById('btn-reminder-dismiss');
+    if (bannerStart) bannerStart.addEventListener('click', () => { banner.hidden = true; openDaySessionModal(state.currentDay); });
+    if (bannerDismiss) bannerDismiss.addEventListener('click', () => { banner.hidden = true; });
+
+    if (btnShowDisclaimer && modalDisclaimer) {
+      btnShowDisclaimer.addEventListener('click', () => { modalDisclaimer.hidden = false; });
+    }
+    if (btnCloseDisclaimerModal && modalDisclaimer) {
+      btnCloseDisclaimerModal.addEventListener('click', () => { modalDisclaimer.hidden = true; });
     }
 
     if (btnResetData) {
@@ -855,6 +1332,7 @@
         );
         if (confirmed) {
           clearSessionTimer();
+          clearSosTimer();
           StorageHelper.clear();
           state = getDefaultState();
           renderEntryFlow();
@@ -866,5 +1344,8 @@
   document.addEventListener('DOMContentLoaded', () => {
     bindEvents();
     renderEntryFlow();
+    checkReminder();
+    setInterval(checkReminder, 30000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) checkReminder(); });
   });
 })();

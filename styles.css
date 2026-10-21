@@ -1005,3 +1005,279 @@ input:focus-visible {
   white-space: nowrap;
   border: 0;
 }
+/* =====================================================
+   PHASE 5 ADDITIONS: URGE SOS, 2-TAP DIARY, CHART & REMINDERS
+   ===================================================== */
+
+/* Discreet In-App Reminder Banner */
+.reminder-banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 28px);
+  max-width: 432px;
+  background: #33101E;
+  color: #FFFFFF;
+  border-radius: 20px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: 0 12px 28px rgba(42, 10, 22, 0.35);
+  z-index: 120;
+}
+
+.reminder-banner[hidden],
+.diary-suboptions[hidden],
+.diary-feedback[hidden] {
+  display: none !important;
+}
+
+.reminder-banner-text strong {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--soft-accent);
+}
+
+.reminder-banner-text span {
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.reminder-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reminder-close-btn {
+  color: #FFFFFF;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 1.05rem;
+}
+
+/* 2-Tap Bladder Diary */
+.diary-cat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.diary-cat-btn {
+  background: var(--bg);
+  border: 2px solid transparent;
+  border-radius: 18px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--text);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.diary-cat-btn.active {
+  border-color: var(--primary-dark);
+  background: #FCE8EE;
+  color: var(--primary-dark);
+}
+
+.diary-cat-icon {
+  font-size: 1.45rem;
+}
+
+.diary-suboptions {
+  background: var(--bg);
+  border-radius: 18px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.diary-suboptions-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+  margin-bottom: 10px;
+  display: block;
+}
+
+.diary-sub-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.diary-sub-btn {
+  flex: 1 1 calc(50% - 8px);
+  background: #FFFFFF;
+  border: 1px solid var(--border-soft);
+  color: var(--text);
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 0.94rem;
+}
+
+.diary-feedback {
+  background: #FCE8EE;
+  color: var(--primary-dark);
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 0.94rem;
+  margin-bottom: 10px;
+}
+
+.day-select-input,
+.time-input {
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.96rem;
+  font-weight: 600;
+  min-height: 48px;
+}
+
+.toggle-checkbox {
+  width: 28px;
+  height: 28px;
+  accent-color: var(--primary-dark);
+  cursor: pointer;
+}
+
+.diary-entries-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.diary-entry-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg);
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 0.94rem;
+}
+
+.diary-entry-delete {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  min-height: 40px;
+}
+
+/* Simple Weekly Chart */
+.weekly-chart {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  align-items: end;
+  height: 150px;
+  padding: 14px 6px 6px;
+  background: var(--bg);
+  border-radius: 18px;
+  margin-bottom: 12px;
+}
+
+.chart-day-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  gap: 6px;
+}
+
+.chart-bars-wrap {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  height: 105px;
+}
+
+.chart-bar {
+  width: 8px;
+  border-radius: 6px 6px 2px 2px;
+  min-height: 4px;
+}
+
+.chart-bar.leak-bar { background: var(--primary-dark); }
+.chart-bar.urge-bar { background: var(--accent); }
+.chart-bar.trip-bar { background: var(--soft-accent); }
+
+.chart-day-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+.leak-dot { background: var(--primary-dark); }
+.urge-dot { background: var(--accent); }
+.trip-dot { background: var(--soft-accent); }
+
+/* Week 1 Comparison Table */
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 12px;
+  font-size: 0.94rem;
+}
+
+.comparison-table th,
+.comparison-table td {
+  padding: 10px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.comparison-table th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.86rem;
+}
+
+/* Urge SOS Modal Step Box */
+.sos-step-card {
+  background: var(--bg);
+  border-radius: 18px;
+  padding: 16px;
+  margin: 12px 0 18px;
+  text-align: left;
+}
+
+.sos-step-card strong {
+  color: var(--primary-dark);
+  display: block;
+  margin-bottom: 4px;
+}

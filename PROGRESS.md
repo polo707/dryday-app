@@ -3,8 +3,8 @@
 > **Recovery Instruction:** If the chat session is interrupted, give this repository (or this `PROGRESS.md` file) to a new chat session to resume from the last completed phase without restarting.
 
 ## Current Status
-- **Last Completed Phase:** PHASE 4 — WEEK 1 CONTENT AND SESSION PLAYER
-- **Next Phase:** PHASE 5 — URGE SOS, DIARY, PROGRESS, SETTINGS
+- **Last Completed Phase:** PHASE 5 — URGE SOS, DIARY, PROGRESS, SETTINGS
+- **Next Phase:** PHASE 6 — TEST AND FINISH
 
 ## Phases Checklist
 - [x] **Phase 0 — GitHub Setup:** `README.md` and `PROGRESS.md` created. Repository: `polo707/dryday-app`, published with GitHub Pages.
@@ -14,7 +14,13 @@
 - [x] **Phase 4 — Week 1 Content and Session Player:** `program.js` has full Week 1 (Days 1–7: lesson, habit, exercise blocks with hold/relax seconds and reps) plus `patternAdjustments` (bonus block added on Days 2–7 for Stress / Urge / Mixed) and placeholders for Weeks 2–8. "Start today" and Plan-tab rows open the lesson, then the guided player: "Get Ready" countdown, animated circle (Squeeze & Lift / Relax / Rest / Breathe In / Breathe Out), seconds countdown, "Rep X of Y", progress bar, Pause, Skip Set, Sound (Web Audio) and Vibration toggles. Finishing marks the day done, updates the streak, and moves "today" to the next open day.
   - Note: Gemini's `app.js` for Phase 4 arrived cut off mid-file; the missing part (session timeline, player, completion, streak, event binding) was completed by Claude to match Gemini's design and CSS. Also fixed: Day 6 "Calming Belly Breaths" now shows Breathe In / Breathe Out instead of Squeeze; small typos; safety reminder shown in the lesson view when red flags were reported.
   - Known gaps for later: the quiz modal has no close button (only the result screen does).
-- [ ] **Phase 5 — Urge SOS, Diary, Progress, Settings** (the "Urge SOS" button in the header is not wired yet)
+- [x] **Phase 5 — Urge SOS, Diary, Progress, Settings:**
+  - 60-second Urge SOS from the header on every screen: Stop & stay still (0–15 s) → 5 quick squeezes, 1 s / 2 s (15–30 s) → slow belly breathing, 4 s in / 6 s out (30–45 s) → distraction, count back from 100 by 7s (45–60 s). End screen: Repeat, "Log this urge", Close.
+  - 2-tap Bladder Diary (Leak / Strong Urge / Bathroom Trip / Drink → detail), saved to the current program day; day view with Delete; 7-day bar chart (leaks, strong urges, trips); Days 1–2 vs. Days 6–7 average comparison table.
+  - Home "Quick Bladder Log" card; Plan tab lists Weeks 2–8 roadmap.
+  - Discreet reminder ("Your 5-minute routine is ready") at a chosen time: in-app banner, plus a system notification only if permission was granted and the app is open in the background. Honest note in Settings that there are no server push notifications.
+  - Settings: reminder on/off + time, sound and vibration toggles (synced with the session player), Retake Quiz (with Close button), disclaimer, install instructions, Reset Data.
+  - Note: Gemini's `index.html` and `app.js` for Phase 5 arrived cut off at ~20,000 characters (the chat's paste limit). The missing parts (end of Settings, bottom nav, disclaimer modal, scripts; Urge SOS, diary, chart, comparison, reminders, settings logic and event binding) were completed by Claude following Gemini's description and CSS. **Tip for next phases:** send files as downloaded files, or split any file over ~18,000 characters into parts.
 - [ ] **Phase 6 — Test and Finish**
 
 ## Files in the Repository

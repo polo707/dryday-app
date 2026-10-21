@@ -23,6 +23,20 @@
   <div class="app-frame" id="app-root">
 
     <!-- ==========================================
+         DISCREET REMINDER BANNER (In-App Toast)
+         ========================================== -->
+    <div id="reminder-banner" class="reminder-banner" role="status" aria-live="polite" hidden>
+      <div class="reminder-banner-text">
+        <strong>DryDay Reminder</strong>
+        <span>Your 5-minute routine is ready</span>
+      </div>
+      <div class="reminder-banner-actions">
+        <button type="button" id="btn-reminder-start" class="inline-pill-btn">Start</button>
+        <button type="button" id="btn-reminder-dismiss" class="reminder-close-btn" aria-label="Dismiss reminder">✕</button>
+      </div>
+    </div>
+
+    <!-- ==========================================
          GATE 1: ACCESS CODE SCREEN (First Launch)
          ========================================== -->
     <section id="screen-access" class="gate-screen" aria-labelledby="access-title">
@@ -98,7 +112,7 @@
          MAIN APPLICATION SHELL
          ========================================== -->
     <div id="app-shell" class="app-shell" hidden>
-      <!-- Top Bar (Visible on all main tabs) -->
+      <!-- Top Bar (Visible on every screen with persistent Urge SOS button) -->
       <header class="top-bar">
         <div class="greeting-group">
           <span class="greeting-eyebrow" id="greeting-text">Good Morning,</span>
@@ -137,7 +151,7 @@
             <button type="button" class="day-pill" data-day="7" role="tab" aria-selected="false">Day 7</button>
           </div>
 
-          <!-- Featured Primary Dark Card (Matches Reference Image) -->
+          <!-- Featured Primary Dark Card -->
           <article class="featured-card" id="today-featured-card">
             <div class="featured-card-top">
               <div class="featured-icon-box" aria-hidden="true">♥</div>
@@ -155,7 +169,7 @@
             <div class="featured-card-footer">
               <div class="featured-meta">
                 <strong id="today-pattern-badge">Tailored Daily Plan</strong>
-                <span>1 short lesson + guided session</span>
+                <span>Tap to read lesson &amp; start session</span>
               </div>
               <button
                 type="button"
@@ -168,13 +182,13 @@
             </div>
           </article>
 
-          <!-- Secondary White Cards (Matches Reference Image) -->
+          <!-- Today's Habit Card -->
           <article class="white-card">
             <div class="white-card-header">
               <div class="soft-icon-box" aria-hidden="true">✦</div>
               <div class="white-card-title-wrap">
                 <h3>Today's Small Habit</h3>
-                <span class="time-badge">All Day</span>
+                <span class="time-badge">Daily Focus</span>
               </div>
             </div>
             <p class="card-body-text" id="today-habit-text">
@@ -182,16 +196,37 @@
             </p>
           </article>
 
+          <!-- Quick 2-Tap Diary Shortcut on Home -->
+          <article class="white-card">
+            <div class="white-card-header">
+              <div class="soft-icon-box" aria-hidden="true">✎</div>
+              <div class="white-card-title-wrap">
+                <h3>Quick Bladder Log</h3>
+                <span class="time-badge">2 Taps</span>
+              </div>
+            </div>
+            <p class="card-body-text">
+              Log a bathroom trip, urge, leak, or drink in seconds to track your Week 1 progress.
+            </p>
+            <div class="white-card-footer">
+              <span class="muted-label" id="home-diary-count">Today's entries: 0</span>
+              <button type="button" class="inline-pill-btn" data-action="go-diary">
+                Open Diary →
+              </button>
+            </div>
+          </article>
+
+          <!-- Quiz Personalization Card -->
           <article class="white-card" id="home-quiz-card">
             <div class="white-card-header">
               <div class="soft-icon-box" aria-hidden="true">✓</div>
               <div class="white-card-title-wrap">
-                <h3>Personalize Your Plan</h3>
+                <h3>Your Bladder Pattern</h3>
                 <span class="time-badge">1 min</span>
               </div>
             </div>
             <p class="card-body-text">
-              Take our 1-minute pattern check to tailor your Week 1 exercises for Stress, Urge, or Mixed leaks.
+              Tailor your Week 1 exercises for Stress, Urge, or Mixed leaks and check safety red flags.
             </p>
             <div class="white-card-footer">
               <span class="muted-label" id="home-pattern-status">Current pattern: Balanced Default</span>
@@ -217,29 +252,29 @@
             <p class="card-body-text">
               Days 1 to 7 focus on muscle awareness, gentle slow holds, quick reflexes ("The Knack"), and calming sudden urges.
             </p>
-            <div id="plan-week1-list" class="plan-day-list">
-              <!-- Populated by app.js / program.js -->
-            </div>
+            <div id="plan-week1-list" class="plan-day-list"></div>
           </div>
 
           <div class="white-card muted-card">
             <div class="status-row">
-              <strong>Weeks 2–8: Progressive Strength</strong>
-              <span class="status-pill">Coming Next</span>
+              <strong>Weeks 2–8: Progressive Roadmap</strong>
+              <span class="status-pill">Upcoming</span>
             </div>
-            <p class="card-body-text">
-              Architecture ready for Weeks 2–8: gradual progression from 4-second holds toward 8–10 seconds, standing endurance, and bladder interval training.
+            <p class="card-body-text" style="margin-bottom: 12px;">
+              Built to expand smoothly as your pelvic floor grows stronger over 8 weeks:
             </p>
+            <div id="plan-future-weeks" class="plan-day-list"></div>
           </div>
         </section>
 
-        <!-- TAB 3: PROGRESS & BLADDER DIARY -->
+        <!-- TAB 3: PROGRESS & 2-TAP BLADDER DIARY -->
         <section id="view-progress" class="tab-view" aria-labelledby="progress-heading" hidden>
           <h1 id="progress-heading" class="two-tone-heading">
             Your Progress &amp;<br />
             <span>Bladder Diary</span>
           </h1>
 
+          <!-- Top Stats Grid -->
           <div class="stats-grid">
             <div class="white-card stat-card">
               <span class="stat-label">Days Completed</span>
@@ -251,11 +286,83 @@
             </div>
           </div>
 
+          <!-- 2-Tap Bladder Diary Logger -->
           <div class="white-card" id="diary-container">
-            <h3>Quick 2-Tap Bladder Diary</h3>
-            <p class="card-body-text">
-              Full 2-tap logging and your Day 1–2 vs. Day 6–7 comparison chart will appear here as you log during Week 1.
+            <div class="status-row">
+              <h3>2-Tap Bladder Diary</h3>
+              <span class="status-pill confirmed" id="diary-active-day-label">Logging for Day 1</span>
+            </div>
+            <p class="card-body-text" style="margin-bottom:12px;">
+              <strong>Step 1:</strong> Tap what happened. <strong>Step 2:</strong> Tap the detail to save immediately.
             </p>
+
+            <!-- Tap 1: Category Buttons -->
+            <div class="diary-cat-grid" role="group" aria-label="Diary Categories">
+              <button type="button" class="diary-cat-btn" data-diary-cat="leak">
+                <span class="diary-cat-icon" aria-hidden="true">💧</span>
+                <span>Leak</span>
+              </button>
+              <button type="button" class="diary-cat-btn" data-diary-cat="urge">
+                <span class="diary-cat-icon" aria-hidden="true">⚡</span>
+                <span>Strong Urge</span>
+              </button>
+              <button type="button" class="diary-cat-btn" data-diary-cat="trip">
+                <span class="diary-cat-icon" aria-hidden="true">🚻</span>
+                <span>Bathroom Trip</span>
+              </button>
+              <button type="button" class="diary-cat-btn" data-diary-cat="drink">
+                <span class="diary-cat-icon" aria-hidden="true">☕</span>
+                <span>Drink</span>
+              </button>
+            </div>
+
+            <!-- Tap 2: Sub-options (Shown dynamically after Tap 1) -->
+            <div id="diary-suboptions" class="diary-suboptions" hidden></div>
+
+            <p id="diary-feedback" class="diary-feedback" role="status" aria-live="polite" hidden></p>
+
+            <hr class="divider" />
+
+            <!-- Day Selector for Viewing Diary Entries -->
+            <div class="status-row" style="margin-bottom:8px;">
+              <strong>Day View Entries</strong>
+              <select id="diary-day-select" class="day-select-input" aria-label="Select day to view diary entries">
+                <option value="1">Day 1</option>
+                <option value="2">Day 2</option>
+                <option value="3">Day 3</option>
+                <option value="4">Day 4</option>
+                <option value="5">Day 5</option>
+                <option value="6">Day 6</option>
+                <option value="7">Day 7</option>
+              </select>
+            </div>
+            <div id="diary-day-entries" class="diary-entries-list"></div>
+          </div>
+
+          <!-- Simple Weekly Chart (Days 1-7) -->
+          <div class="white-card">
+            <h3>Week 1 Activity Chart</h3>
+            <p class="muted-small" style="margin-bottom:14px;">
+              Daily count of leaks, strong urges, and bathroom trips across Days 1–7.
+            </p>
+            <div id="weekly-chart" class="weekly-chart"></div>
+            <div class="chart-legend">
+              <span><i class="legend-dot leak-dot"></i> Leaks</span>
+              <span><i class="legend-dot urge-dot"></i> Strong Urges</span>
+              <span><i class="legend-dot trip-dot"></i> Bathroom Trips</span>
+            </div>
+          </div>
+
+          <!-- Week 1 Summary Comparing Day 1-2 with Day 6-7 -->
+          <div class="white-card">
+            <div class="status-row">
+              <h3>Week 1 Check-In Summary</h3>
+              <span class="time-badge">Days 1–2 vs. 6–7</span>
+            </div>
+            <p class="muted-small" style="margin-bottom:12px;">
+              Compares your early baseline (Days 1–2) with the end of Week 1 (Days 6–7).
+            </p>
+            <div id="week1-comparison-box"></div>
           </div>
         </section>
 
@@ -266,7 +373,62 @@
             <span>Support</span>
           </h1>
 
+          <!-- Reminders Card -->
+          <div class="white-card">
+            <h3>Daily Routine Reminder</h3>
+            <p class="muted-small" style="margin-bottom:14px;">
+              Pick a time for a discreet reminder message: <em>"Your 5-minute routine is ready"</em>.
+            </p>
+
+            <div class="setting-item">
+              <label for="setting-reminder-enabled"><strong>Enable Daily Reminder</strong></label>
+              <input type="checkbox" id="setting-reminder-enabled" class="toggle-checkbox" />
+            </div>
+
+            <div class="setting-item" style="margin-top:8px;">
+              <label for="setting-reminder-time"><strong>Reminder Time</strong></label>
+              <input type="time" id="setting-reminder-time" class="time-input" value="09:00" />
+            </div>
+
+            <div class="disclaimer-box" style="margin-top:14px; margin-bottom:0; font-size:0.92rem;">
+              <strong>How Reminders Work:</strong> Reminders work while DryDay is open or installed on your home screen. Because DryDay keeps all your data 100% private on your phone with no tracking servers, it does not send background push notifications when the app is completely closed.
+            </div>
+          </div>
+
+          <!-- Audio, Vibration, Quiz & Disclaimer Settings -->
           <div class="white-card settings-list-card">
+            <div class="setting-item">
+              <div>
+                <strong>Session Sound Cues</strong>
+                <p class="muted-small">Gentle chime when squeezing and relaxing.</p>
+              </div>
+              <input type="checkbox" id="setting-sound-toggle" class="toggle-checkbox" aria-label="Toggle session sound cues" />
+            </div>
+
+            <hr class="divider" />
+
+            <div class="setting-item">
+              <div>
+                <strong>Vibration Cues</strong>
+                <p class="muted-small">Gentle haptic vibration during exercises (on supported phones).</p>
+              </div>
+              <input type="checkbox" id="setting-vibration-toggle" class="toggle-checkbox" aria-label="Toggle vibration cues" />
+            </div>
+
+            <hr class="divider" />
+
+            <div class="setting-item">
+              <div>
+                <strong>Bladder Pattern Quiz</strong>
+                <p class="muted-small">Retake the 1-minute quiz to adjust your Stress, Urge, or Mixed focus.</p>
+              </div>
+              <button type="button" class="secondary-btn" data-action="open-quiz">
+                Retake Quiz
+              </button>
+            </div>
+
+            <hr class="divider" />
+
             <div class="setting-item">
               <div>
                 <strong>Medical Disclaimer</strong>
@@ -281,9 +443,10 @@
 
             <div class="setting-item">
               <div>
-                <strong>Install on Your Phone</strong>
+                <strong>Install on Your Home Screen</strong>
                 <p class="muted-small">
-                  On iPhone Safari: tap <strong>Share</strong> → <strong>Add to Home Screen</strong>. On Android Chrome: tap the <strong>menu (⋮)</strong> → <strong>Add to Home screen</strong>.
+                  <strong>iPhone Safari:</strong> tap Share → Add to Home Screen.<br />
+                  <strong>Android Chrome:</strong> tap Menu (⋮) → Add to Home screen.
                 </p>
               </div>
             </div>
@@ -304,7 +467,7 @@
 
       </main>
 
-      <!-- DARK PILL-SHAPED BOTTOM NAVIGATION BAR (Matches Reference Image) -->
+      <!-- DARK PILL-SHAPED BOTTOM NAVIGATION BAR -->
       <nav class="bottom-pill-nav" aria-label="Primary Navigation">
         <button type="button" class="nav-tab active" data-tab="home" aria-current="page">
           <span class="nav-icon" aria-hidden="true">⌂</span>
