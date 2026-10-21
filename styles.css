@@ -33,6 +33,7 @@ html, body {
   font-size: 17px; /* Minimum 17px body text requirement */
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 /* Mobile-First Centered Frame on Desktop/Tablet */
@@ -68,6 +69,7 @@ h1, h2, h3, .hero-heading, .two-tone-heading, .featured-title {
 /* Minimum 48px Tap Targets for Accessibility */
 button,
 input,
+select,
 .nav-tab,
 .day-pill {
   min-height: 48px;
@@ -82,7 +84,8 @@ button {
 }
 
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
@@ -93,6 +96,8 @@ input:focus-visible {
 .gate-screen {
   min-height: 100dvh;
   padding: 24px 20px;
+  padding-top: calc(24px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -270,7 +275,7 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
-  padding-bottom: 112px; /* Space for floating bottom pill nav */
+  padding-bottom: calc(116px + env(safe-area-inset-bottom, 0px)); /* Space for floating bottom pill nav */
 }
 
 .top-bar {
@@ -278,6 +283,7 @@ input:focus-visible {
   align-items: center;
   justify-content: space-between;
   padding: 20px 20px 10px;
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
 }
 
 .greeting-group {
@@ -637,7 +643,7 @@ input:focus-visible {
    ===================================================== */
 .bottom-pill-nav {
   position: fixed;
-  bottom: 16px;
+  bottom: max(14px, env(safe-area-inset-bottom, 14px));
   left: 50%;
   transform: translateX(-50%);
   width: calc(100% - 32px);
@@ -665,7 +671,7 @@ input:focus-visible {
 }
 
 .nav-tab.active {
-  background: var(--accent);
+  background: #A9426A; /* slightly deeper rose so the small white label meets WCAG AA contrast */
   color: #FFFFFF;
 }
 
@@ -1012,7 +1018,7 @@ input:focus-visible {
 /* Discreet In-App Reminder Banner */
 .reminder-banner {
   position: fixed;
-  top: 12px;
+  top: calc(12px + env(safe-area-inset-top, 0px));
   left: 50%;
   transform: translateX(-50%);
   width: calc(100% - 28px);
@@ -1280,4 +1286,13 @@ input:focus-visible {
   color: var(--primary-dark);
   display: block;
   margin-bottom: 4px;
+}
+
+.error-message[hidden] {
+  display: none !important;
+}
+
+/* Modal sheets stay clear of the iPhone home bar */
+.modal-backdrop {
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 }

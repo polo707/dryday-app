@@ -3,8 +3,9 @@
 > **Recovery Instruction:** If the chat session is interrupted, give this repository (or this `PROGRESS.md` file) to a new chat session to resume from the last completed phase without restarting.
 
 ## Current Status
-- **Last Completed Phase:** PHASE 5 — URGE SOS, DIARY, PROGRESS, SETTINGS
-- **Next Phase:** PHASE 6 — TEST AND FINISH
+- **Last Completed Phase:** PHASE 6 — TEST AND FINISH (Phases 0–6 complete ✓)
+- **Release state:** Week 1 release live on GitHub Pages: https://polo707.github.io/dryday-app/
+- **Next step:** Weeks 2–8 content (see README → "Adding Weeks 2–8"), and replacing the shared access code with a per-purchase delivery flow.
 
 ## Phases Checklist
 - [x] **Phase 0 — GitHub Setup:** `README.md` and `PROGRESS.md` created. Repository: `polo707/dryday-app`, published with GitHub Pages.
@@ -21,7 +22,11 @@
   - Discreet reminder ("Your 5-minute routine is ready") at a chosen time: in-app banner, plus a system notification only if permission was granted and the app is open in the background. Honest note in Settings that there are no server push notifications.
   - Settings: reminder on/off + time, sound and vibration toggles (synced with the session player), Retake Quiz (with Close button), disclaimer, install instructions, Reset Data.
   - Note: Gemini's `index.html` and `app.js` for Phase 5 arrived cut off at ~20,000 characters (the chat's paste limit). The missing parts (end of Settings, bottom nav, disclaimer modal, scripts; Urge SOS, diary, chart, comparison, reminders, settings logic and event binding) were completed by Claude following Gemini's description and CSS. **Tip for next phases:** send files as downloaded files, or split any file over ~18,000 characters into parts.
-- [ ] **Phase 6 — Test and Finish**
+- [x] **Phase 6 — Test and Finish:**
+  - End-to-end flow tested in a phone-sized browser at 360 px and 390 px: wrong code shows an error; code accepted with any case/spaces; disclaimer; quiz with red flag shows the referral note and the lesson safety reminder; session player (pause really pauses, skip, completion); Plan, Progress and More tabs; 60-second Urge SOS; Retake Quiz close button; no sideways scrolling; no JavaScript errors.
+  - From Gemini's Phase 6 stylesheet: iPhone safe areas (notch at the top when installed on the home screen, home bar at the bottom for the nav, modals and banner), `overflow-x: hidden`, 48 px tap target and focus ring for the diary day selector. Gemini's unified `styles.css` arrived cut off at ~20,000 characters, so these changes were applied to the existing complete stylesheet instead of replacing it.
+  - Contrast check: body/muted text 5.9–6.5:1, white on burgundy 10:1, rose headings 3.9:1 (large text, passes AA). The active nav label was 4.3:1, so the active tab color was deepened to `#A9426A` (5.7:1).
+  - Known limits: reminders and the access code are client-side only; the access code `DRYDAY2026` is visible in the code and is a placeholder until a per-purchase delivery flow exists.
 
 ## Files in the Repository
 1. `README.md`

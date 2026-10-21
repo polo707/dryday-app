@@ -2,7 +2,7 @@
 
 **DryDay** is a mobile-first, evidence-based educational web application designed for women 40+ in the United States to support bladder control (stress, urge, and mixed urinary incontinence) through a guided daily exercise and habits program.
 
-The complete program is architected for **8 weeks**, with **Week 1 (Days 1–7)** being built first and Weeks 2–8 structured for seamless expansion.
+The complete program is architected for **8 weeks**, with **Week 1 (Days 1–7)** fully implemented and Weeks 2–8 structured for seamless expansion.
 
 ---
 
@@ -15,7 +15,7 @@ The complete program is architected for **8 weeks**, with **Week 1 (Days 1–7)*
   - One practical daily habit tailored to the user's pattern.
 - **Urge SOS (60-Second Routine):** Accessible from every screen.
 - **2-Tap Bladder Diary:** Fast logging for leaks, strong urges, bathroom trips, and fluid intake, with daily views and a weekly summary chart.
-- **Progress Tracking & Discreet Reminders:** Streak counter, Day 1–2 vs. Day 6–7 comparison, and local reminders.
+- **Progress Tracking & Discreet Reminders:** Streak counter, Day 1–2 vs. Day 6–7 comparison, and in-app reminders ("Your 5-minute routine is ready") that work while the app is open.
 - **100% Local Privacy:** All user data stays on the device via `localStorage`.
 
 ---
@@ -49,7 +49,12 @@ python3 -m http.server 8000
 ## Project Architecture
 - `index.html` — App shell, semantic views, and mobile meta tags.
 - `styles.css` — Mobile-first design system (`#7A1F3D` primary dark, `#C2557A` accent, `#F2A7C0` soft accent, `#FBF1F3` background, Fraunces & Inter typography).
-- `program.js` — Curriculum data (`const PROGRAM = { weeks: [...] }`). Week 1 is filled in Phase 4; Weeks 2–8 later.
-- `app.js` — State management (`localStorage` with try/catch), navigation, gates, and (in later phases) quiz, session player, Urge SOS, and bladder diary.
+- `program.js` — Curriculum data (`const PROGRAM = { weeks: [...] }`): full Week 1, pattern bonus blocks, and Weeks 2–8 placeholders.
+- `app.js` — State management (`localStorage` with try/catch), navigation, gates, quiz, guided session player, Urge SOS, bladder diary, progress, reminders, and settings.
 - `CONTENT_SOURCES.md` — Clinical guidelines and reference mapping for all exercise parameters and educational content.
 - `PROGRESS.md` — Phase-by-phase build log and recovery checkpoint.
+
+---
+
+## Adding Weeks 2–8
+Fill the `days` array of the matching week in `program.js` using the same shape as Week 1 (`day`, `title`, `duration`, `summary`, `lessonHtml`, `habit`, `blocks`). Every new parameter must be added to `CONTENT_SOURCES.md` first. The Home day pills, Plan list and progress counters currently assume Week 1 (7 days) and will need a small update to show the current week.
