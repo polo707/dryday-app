@@ -57,3 +57,27 @@ assert.ok(ok);
 assert.equal(JSON.parse(b64u.dec(c64)).aud, 'https://fcm.googleapis.com');
 
 console.log('push tests: all passed');
+
+// ── Discreet mode, fresh-start message, night-owl day start ──
+{
+  const { messageFor, dueSlot: due2, localNow } = await import('../api/_push.js');
+  const base = { tz: 'America/New_York', times: ['09:00', '14:00', '19:00'] };
+  const t = new Date('2026-10-21T13:30:00Z'); // 9:30 New York
+  assert.equal(messageFor(base, 0, t).body, 'Your 5-minute routine is ready');
+  assert.equal(messageFor({ ...base, discreet: true }, 1, t).title, 'Daily reminder');
+  assert.ok(!/DryDay|bladder|leak/i.test(JSON.stringify(messageFor({ ...base, discreet: true }, 0, t))));
+  // last practice 2 days ago → fresh start (slot 0 only)
+  const missed = { ...base, progress: { date: '2026-10-19', sets: 1, last: '2026-10-19' } };
+  assert.match(messageFor(missed, 0, t).body, /fresh start/);
+  assert.equal(messageFor(missed, 1, t).body, 'Your 2-minute set is ready');
+  // practiced yesterday → normal
+  assert.equal(messageFor({ ...base, progress: { date: '2026-10-20', sets: 1, last: '2026-10-20' } }, 0, t).body, 'Your 5-minute routine is ready');
+  // day start 2 AM: 01:30 on the 22nd still counts as the 21st
+  assert.equal(localNow('America/New_York', new Date('2026-10-22T05:30:00Z'), 2).date, '2026-10-21');
+  // reminder at 00:30 with day start 2 → due at 00:30 of the next calendar day, same app day
+  const owl = { ...base, times: ['21:00', '23:00', '00:30'], dayStart: 2, sent: { date: '2026-10-21', slots: [0, 1] }, progress: { date: '2026-10-21', sets: 2 } };
+  assert.equal(due2(owl, new Date('2026-10-22T04:40:00Z')), 2); // 00:40 New York on the 22nd
+  // the 3rd set done → no reminder
+  assert.equal(due2({ ...owl, progress: { date: '2026-10-21', sets: 3 } }, new Date('2026-10-22T04:40:00Z')), -1);
+  console.log('push tests (discreet / fresh start / day start): all passed');
+}

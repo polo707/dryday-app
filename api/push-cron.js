@@ -3,7 +3,7 @@
  * Sends each phone the reminder for the set that is due in its local time (up to 3 a day),
  * skipping sets already done. Expired subscriptions (permission or app removed) are deleted.
  */
-import { send, vapidFromEnv, sendPush, dueSlot, markSent, MESSAGES, blobList, blobGetJSON, blobPutJSON, blobDelete } from './_push.js';
+import { send, vapidFromEnv, sendPush, dueSlot, markSent, messageFor, blobList, blobGetJSON, blobPutJSON, blobDelete } from './_push.js';
 
 export default async function handler(req, res) {
   const secret = process.env.CRON_SECRET;
@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       const record = await blobGetJSON(blob.pathname);
       const slot = record ? dueSlot(record, now) : -1;
       if (slot < 0) { stats.skipped++; continue; }
-      const status = await sendPush(record.subscription, { ...MESSAGES[slot], url: '/?source=push', tag: 'dryday-daily' }, vapid);
+      const status = await sendPush(record.subscription, { ...messageFor(record, slot, now), url: '/?source=push', tag: 'dryday-daily' }, vapid);
       if (status === 404 || status === 410) { expired.push(blob.url); stats.removed++; continue; }
       if (status >= 400) { stats.failed++; console.error('push status', status); continue; }
       markSent(record, slot, now);

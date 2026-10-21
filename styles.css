@@ -1623,3 +1623,122 @@ select:focus-visible {
 .done-photo img { display: block; width: 100%; height: 160px; object-fit: cover; }
 .habit-box strong { display: inline-flex; align-items: center; gap: 6px; }
 .habit-box .ico { width: 18px; height: 18px; color: var(--accent); }
+
+/* =====================================================
+   COMPETITOR-GAP FEATURES
+   ===================================================== */
+.comeback-card[hidden] { display: none !important; }
+.comeback-card { border: 2px solid var(--soft-accent); background: linear-gradient(180deg, #FFFFFF 0%, #FFF7F9 100%); }
+
+.technique-offer {
+  background: var(--bg);
+  border: 1px dashed var(--accent);
+  border-radius: 18px;
+  padding: 14px 16px;
+  margin: 0 0 14px;
+}
+.technique-offer strong { color: var(--primary-dark); display: block; }
+.technique-offer p { font-size: 0.93rem; color: var(--muted); margin: 4px 0 10px; }
+
+.quiz-options.yesno { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.tip-list { list-style: none; padding: 0; margin: 4px 0 0; display: grid; gap: 10px; }
+.tip-list li { background: var(--bg); border-radius: 16px; padding: 12px 14px; border-left: 4px solid var(--accent); }
+.tip-list strong { display: block; color: var(--text); font-size: 0.95rem; margin-bottom: 4px; }
+.tip-list p { font-size: 0.94rem; color: var(--muted); }
+
+/* Milestones */
+.milestone-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.milestone {
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #FFFFFF;
+  color: var(--muted);
+}
+.milestone strong { font-size: 0.92rem; color: var(--muted); line-height: 1.25; }
+.milestone-need { font-size: 0.8rem; line-height: 1.3; }
+.milestone-icon {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bg); color: #B9A3AC; margin-bottom: 2px;
+}
+.milestone.unlocked { background: linear-gradient(160deg, #FFFFFF 0%, #FCE8EE 100%); border-color: var(--soft-accent); }
+.milestone.unlocked strong { color: var(--primary-dark); }
+.milestone.unlocked .milestone-need { color: var(--accent); font-weight: 700; }
+.milestone.unlocked .milestone-icon { background: var(--primary-dark); color: #FFFFFF; }
+
+/* Practice history */
+.history-list { display: grid; gap: 2px; }
+.history-item { display: flex; align-items: center; gap: 12px; padding: 10px 2px; border-bottom: 1px solid var(--border-soft); }
+.history-item:last-child { border-bottom: 0; }
+.history-item strong { display: block; font-size: 0.95rem; color: var(--text); }
+.history-item span:not(.history-dot) { font-size: 0.85rem; color: var(--muted); }
+.history-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--soft-accent); flex-shrink: 0; }
+.history-dot.session { background: var(--primary-dark); }
+
+/* Report for my doctor */
+body.report-open { overflow: hidden; }
+#report-view {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: #EFE6E9;
+  overflow-y: auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 12px calc(env(safe-area-inset-bottom, 0px) + 24px);
+}
+.report-actions {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 10px;
+  margin: 0 auto 12px;
+  max-width: 760px;
+  background: rgba(239, 230, 233, 0.95);
+  border-radius: 18px;
+}
+.report-doc {
+  max-width: 760px;
+  margin: 0 auto;
+  background: #FFFFFF;
+  color: #1F1A1C;
+  border-radius: 14px;
+  padding: 22px 18px;
+  font-size: 0.95rem;
+  box-shadow: var(--shadow-card);
+}
+.report-doc header { border-bottom: 3px solid var(--primary-dark); padding-bottom: 12px; margin-bottom: 14px; }
+.report-brand { color: var(--primary-dark); font-weight: 700; font-size: 0.85rem; letter-spacing: 0.02em; }
+.report-doc h1 { font-family: 'Fraunces', serif; font-size: 1.45rem; line-height: 1.2; margin: 6px 0; color: #1F1A1C; }
+.report-meta { font-size: 0.82rem; color: #5E5458; }
+.report-doc section { margin-bottom: 18px; break-inside: avoid; }
+.report-doc h2 { font-size: 1.02rem; color: var(--primary-dark); margin-bottom: 8px; font-family: 'Inter', sans-serif; }
+.report-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.report-table th, .report-table td { text-align: left; padding: 7px 8px; border-bottom: 1px solid #EADDE2; vertical-align: top; }
+.report-table th { width: 38%; color: #5E5458; font-weight: 600; }
+.report-table.grid th { width: auto; background: #FBF1F3; color: #3A2E33; }
+.report-table.small { font-size: 0.82rem; }
+.report-bars { display: grid; grid-template-columns: repeat(14, 1fr); gap: 4px; align-items: end; margin-top: 12px; }
+.report-bar { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 3px; min-height: 108px; }
+.report-bar b { font-size: 0.68rem; color: var(--primary-dark); }
+.report-bar span { width: 70%; background: var(--primary-dark); border-radius: 4px 4px 0 0; display: block; }
+.report-bar em { font-style: normal; font-size: 0.58rem; color: #5E5458; text-align: center; line-height: 1.1; }
+.report-questions { padding-left: 20px; }
+.report-questions li { margin-bottom: 6px; }
+
+@media print {
+  body.report-open > *:not(#report-view) { display: none !important; }
+  body.report-open { background: #FFFFFF !important; overflow: visible; }
+  #report-view { position: static; background: #FFFFFF; padding: 0; overflow: visible; }
+  .report-actions { display: none !important; }
+  .report-doc { box-shadow: none; max-width: none; padding: 0; border-radius: 0; font-size: 11pt; }
+  .report-bar span { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .report-table.grid th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

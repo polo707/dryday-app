@@ -44,6 +44,11 @@
       <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="17" rx="2.5"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/></symbol>
       <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 6-7"/></symbol>
       <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M2 14h4M10 8h4M18 16h4"/></symbol>
+      <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2.5" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></symbol>
+      <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8z"/><path d="M14 2.5V8h5.5M8.5 13h7M8.5 17h5"/></symbol>
+      <symbol id="i-award" viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="m8.2 13.8-1.7 7.7L12 18.5l5.5 3-1.7-7.7"/></symbol>
+      <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="5.5"/><circle cx="12" cy="12" r="1.5"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
     </defs>
   </svg>
 
@@ -183,6 +188,18 @@
             <button type="button" class="day-pill" data-day="6" role="tab" aria-selected="false">Day 6</button>
             <button type="button" class="day-pill" data-day="7" role="tab" aria-selected="false">Day 7</button>
           </div>
+
+          <!-- Gentle "welcome back" after a missed day (no guilt) -->
+          <article class="white-card comeback-card" id="comeback-card" hidden>
+            <div class="white-card-header">
+              <div class="soft-icon-box" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-sun"/></svg></div>
+              <div class="white-card-title-wrap">
+                <h3>Welcome back</h3>
+                <button type="button" class="setup-close" data-action="dismiss-comeback" aria-label="Close">✕</button>
+              </div>
+            </div>
+            <p class="card-body-text" id="comeback-text">Missed a day or two? That's completely normal. Your muscles remember — today is a fresh start. Just do today's session.</p>
+          </article>
 
           <!-- Featured Primary Dark Card -->
           <article class="featured-card" id="today-featured-card">
@@ -460,6 +477,38 @@
             </p>
             <div id="week1-comparison-box"></div>
           </div>
+        
+          <!-- Milestones -->
+          <div class="white-card">
+            <div class="status-row">
+              <h3>Milestones</h3>
+              <span class="status-pill" id="milestones-count">0 of 8</span>
+            </div>
+            <p class="card-body-text" style="margin-bottom:12px;">Small wins on the way to the 3-month goal health guidelines recommend.</p>
+            <div class="milestone-grid" id="milestone-grid"></div>
+          </div>
+
+          <!-- Practice history -->
+          <div class="white-card">
+            <h3>Practice History</h3>
+            <p class="card-body-text" style="margin-bottom:10px;">Every set you complete, with the day and time.</p>
+            <div id="practice-history" class="history-list"></div>
+          </div>
+
+          <!-- Report for the doctor / physical therapist -->
+          <div class="white-card report-cta">
+            <div class="white-card-header">
+              <div class="soft-icon-box" aria-hidden="true"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg></div>
+              <div class="white-card-title-wrap">
+                <h3>Report for My Doctor</h3>
+              </div>
+            </div>
+            <p class="card-body-text">A clear summary of your bladder diary and practice to print, save as PDF or share with your doctor or pelvic floor physical therapist.</p>
+            <div class="white-card-footer">
+              <span class="muted-label">Created on your phone</span>
+              <button type="button" class="inline-pill-btn" data-action="open-report">Create report →</button>
+            </div>
+          </div>
         </section>
 
         <!-- TAB 4: MORE / SETTINGS -->
@@ -495,6 +544,28 @@
               <input type="time" id="setting-reminder-time-3" class="time-input" data-reminder-slot="2" value="19:00" />
             </div>
 
+            <hr class="divider" />
+            <div class="setting-item">
+              <div>
+                <strong>Discreet Notifications</strong>
+                <p class="muted-small">Notifications only say "Daily reminder", with no app name or health words.</p>
+              </div>
+              <input type="checkbox" id="setting-discreet-toggle" class="toggle-checkbox" aria-label="Toggle discreet notifications" />
+            </div>
+            <div class="setting-item">
+              <div>
+                <label for="setting-day-start"><strong>My Day Starts At</strong></label>
+                <p class="muted-small">For night owls: sets done after midnight count for the day before.</p>
+              </div>
+              <select id="setting-day-start" class="day-select-input">
+                <option value="0">Midnight</option>
+                <option value="1">1:00 AM</option>
+                <option value="2">2:00 AM</option>
+                <option value="3">3:00 AM</option>
+                <option value="4">4:00 AM</option>
+              </select>
+            </div>
+
             <div class="disclaimer-box" style="margin-top:14px; margin-bottom:0; font-size:0.92rem;">
               <strong>How Reminders Work:</strong> DryDay sends a phone notification at each time you pick, even when the app is closed. <strong>Android:</strong> works in Chrome. <strong>iPhone:</strong> first add DryDay to your Home Screen (iOS 16.4 or newer), open it from its icon, then turn reminders on. Your diary and progress stay only on your phone: the reminder service only knows your times, your time zone and how many sets you did today.
             </div>
@@ -518,6 +589,36 @@
                 <p class="muted-small">Gentle haptic vibration during exercises (on supported phones).</p>
               </div>
               <input type="checkbox" id="setting-vibration-toggle" class="toggle-checkbox" aria-label="Toggle vibration cues" />
+            </div>
+
+            <hr class="divider" />
+
+            <div class="setting-item">
+              <div>
+                <strong>Voice Coach</strong>
+                <p class="muted-small">A calm voice says "Squeeze and lift" and "Relax completely", so you can practice with your eyes closed. Off by default.</p>
+              </div>
+              <input type="checkbox" id="setting-voice-toggle" class="toggle-checkbox" aria-label="Toggle voice coach" />
+            </div>
+
+            <hr class="divider" />
+
+            <div class="setting-item">
+              <div>
+                <strong>Am I Doing It Right?</strong>
+                <p class="muted-small">A 30-second technique check with tips for each common problem.</p>
+              </div>
+              <button type="button" class="secondary-btn" data-action="technique-check">Check</button>
+            </div>
+
+            <hr class="divider" />
+
+            <div class="setting-item">
+              <div>
+                <strong>Report for My Doctor</strong>
+                <p class="muted-small">Print, save as PDF or share your diary and practice summary.</p>
+              </div>
+              <button type="button" class="secondary-btn" data-action="open-report">Create</button>
             </div>
 
             <hr class="divider" />

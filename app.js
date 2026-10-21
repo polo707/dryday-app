@@ -49,6 +49,12 @@
       pattern: 'mixed', // 'stress' | 'urge' | 'mixed'
       quizAnswers: {},
       redFlagsDetected: false,
+      tensionFlag: false, // pelvic pain / pain with sex / trouble relaxing → PT first
+      techniqueCheck: null, // { date, issues: [] }
+      practiceHistory: [], // { ts, kind: 'session' | 'short', day }
+      milestonesSeen: [],
+      bestStreak: 0,
+      comebackDismissed: null,
       currentDay: 1,
       completedDays: [],
       lastCompletedDate: null,
@@ -58,6 +64,9 @@
       settings: {
         sound: true,
         vibration: true,
+        voice: false,
+        discreet: false,
+        dayStart: 0,
         reminderEnabled: false,
         reminderTime: '09:00',
         reminderTimes: ['09:00', '14:00', '19:00'],
@@ -82,6 +91,8 @@
     state.settings.reminderTimes = ['09:00', '14:00', '19:00'];
   }
   if (!state.settings.remindersShown) state.settings.remindersShown = { date: null, slots: [] };
+  if (!Array.isArray(state.practiceHistory)) state.practiceHistory = [];
+  if (!Array.isArray(state.milestonesSeen)) state.milestonesSeen = [];
 
   function saveState() {
     StorageHelper.set(state);
@@ -322,6 +333,376 @@
       .join('')}</div></div>`;
   }
 
+  // =====================================================
+  // SAFETY: possible overactive (too-tight) pelvic floor
+  // Pain, pain with sex or trouble relaxing can mean the muscles are already tight;
+  // squeezing exercises can make that worse, so we recommend a pelvic floor PT first.
+  // =====================================================
+  const TENSION_HTML = `
+    <div class="redflag-alert-box" role="note">
+      <strong>Please see a pelvic floor physical therapist first</strong>
+      <p style="margin-top:6px; font-size:0.95rem;">
+        Pain, pain during sex or trouble relaxing can mean your pelvic floor muscles are already too tight. For some women, squeezing exercises can make this worse. Please check with a pelvic floor physical therapist or your doctor before doing the squeezing exercises. Until then, you can read the lessons, use the bladder diary and practice slow, relaxed belly breathing.
+      </p>
+    </div>`;
+
+  // =====================================================
+  // VOICE COACH (optional, off by default) — uses the phone's built-in voice, works offline
+  // =====================================================
+  const VOICE_LINES = {
+    squeeze: 'Squeeze and lift',
+    relax: 'Relax completely',
+    rest: 'Rest',
+    inhale: 'Breathe in slowly',
+    exhale: 'And breathe out'
+  };
+  let chosenVoice = null;
+
+  function pickVoice() {
+    try {
+      const voices = window.speechSynthesis.getVoices() || [];
+      const en = voices.filter((v) => /^en(-|_)/i.test(v.lang));
+      const preferred = ['Samantha', 'Ava', 'Allison', 'Karen', 'Moira', 'Google US English', 'Microsoft Aria', 'Microsoft Jenny', 'female'];
+      chosenVoice = preferred.map((n) => en.find((v) => v.name.toLowerCase().includes(n.toLowerCase()))).find(Boolean)
+        || en.find((v) => /en-US/i.test(v.lang)) || en[0] || null;
+    } catch (_) { chosenVoice = null; }
+  }
+
+  function speak(text, force) {
+    if (!text || (!state.settings.voice && !force)) return;
+    if (!('speechSynthesis' in window) || typeof window.SpeechSynthesisUtterance !== 'function') return;
+    try {
+      if (!chosenVoice) pickVoice();
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'en-US';
+      u.rate = 0.92;
+      u.pitch = 1;
+      u.volume = 1;
+      if (chosenVoice) u.voice = chosenVoice;
+      window.speechSynthesis.speak(u);
+    } catch (_) {}
+  }
+
+  function stopSpeaking() {
+    try { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); } catch (_) {}
+  }
+
+  /** iPhone only lets a page speak after a tap: say something silent from the tap. */
+  function primeVoice() {
+    if (!state.settings.voice || !('speechSynthesis' in window) || typeof window.SpeechSynthesisUtterance !== 'function') return;
+    try {
+      const u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0;
+      window.speechSynthesis.speak(u);
+    } catch (_) {}
+  }
+  try {
+    if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = pickVoice;
+  } catch (_) {}
+
+  // =====================================================
+  // TECHNIQUE CHECK — "Am I doing it right?"
+  // =====================================================
+  const TECHNIQUE_QUESTIONS = [
+    {
+      id: 'lift', good: 'yes',
+      q: 'During the squeezes, did you feel a gentle squeeze and lift inside, as if holding in gas and urine at the same time?',
+      tip: 'Try lying down with your knees bent: the muscles are easier to feel. Imagine stopping gas first, then lift gently. A faint feeling is normal at first. If you still can’t feel anything after 2 weeks, a pelvic floor physical therapist can check it with you.'
+    },
+    {
+      id: 'soft', good: 'yes',
+      q: 'Did your belly, buttocks and thighs stay soft?',
+      tip: 'Use less effort: about half strength is enough. Rest one hand on your belly and one on your buttocks to notice if they tighten.'
+    },
+    {
+      id: 'breath', good: 'yes',
+      q: 'Did you keep breathing normally?',
+      tip: 'Breathe out gently as you squeeze, or count out loud. Holding your breath pushes pressure down onto the pelvic floor.'
+    },
+    {
+      id: 'release', good: 'yes',
+      q: 'After each squeeze, did the muscles fully let go?',
+      tip: 'Letting go is as important as squeezing. Breathe out slowly and let everything soften before the next squeeze. Take the full relax time.'
+    },
+    {
+      id: 'push', good: 'no',
+      q: 'Did you feel any pushing down, bulging or heaviness?',
+      tip: 'The movement should go up and in, never down. Stop, relax completely and try a smaller, gentler squeeze. If you feel bulging or heaviness, please talk to your doctor or a pelvic floor physical therapist.'
+    },
+    {
+      id: 'pain', good: 'no', stop: true,
+      q: 'Did you feel any pain?',
+      tip: 'Please stop the exercises for now and talk to your doctor or a pelvic floor physical therapist before you continue.'
+    }
+  ];
+
+  function openTechniqueCheck() {
+    const existing = document.getElementById('modal-technique');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'modal-technique';
+    modal.className = 'modal-backdrop';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.innerHTML = `
+      <div class="modal-sheet">
+        <div class="status-row">
+          <span class="card-pill-tag" style="margin-bottom:0;">30-Second Check</span>
+          <button type="button" class="secondary-btn" id="tech-close">Close</button>
+        </div>
+        <h2 class="two-tone-heading" style="margin-top:12px;">Am I Doing<br /><span>It Right?</span></h2>
+        <p class="card-body-text" style="margin-bottom:14px;">Think about your last session and answer honestly. There are no wrong answers: this is how you learn.</p>
+        <form id="tech-form">
+          ${TECHNIQUE_QUESTIONS.map((t, i) => `
+            <div class="quiz-question-block">
+              <span class="quiz-question-title">${i + 1}. ${t.q}</span>
+              <div class="quiz-options yesno">
+                <label class="radio-card"><input type="radio" name="${t.id}" value="yes" required /><span>Yes</span></label>
+                <label class="radio-card"><input type="radio" name="${t.id}" value="no" /><span>No</span></label>
+              </div>
+            </div>`).join('')}
+          <button type="submit" class="primary-btn full-width">See my result →</button>
+        </form>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#tech-close').addEventListener('click', () => modal.remove());
+    modal.querySelector('#tech-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const data = new FormData(e.target);
+      const issues = TECHNIQUE_QUESTIONS.filter((t) => data.get(t.id) && data.get(t.id) !== t.good);
+      state.techniqueCheck = { date: dayKey(), issues: issues.map((t) => t.id) };
+      saveState();
+      const stop = issues.some((t) => t.stop);
+      const sheet = modal.querySelector('.modal-sheet');
+      sheet.innerHTML = `
+        <div class="card-pill-tag">${issues.length ? 'Your Tips' : 'Great Technique'}</div>
+        <h2 class="two-tone-heading">${issues.length ? 'A few things<br /><span>to adjust</span>' : 'You’re doing<br /><span>it right!</span>'}</h2>
+        ${stop ? `<div class="redflag-alert-box" role="alert"><strong>Please pause the exercises</strong><p style="margin-top:6px;">${TECHNIQUE_QUESTIONS.find((t) => t.id === 'pain').tip}</p></div>` : ''}
+        ${issues.length
+          ? `<ul class="tip-list">${issues.filter((t) => !t.stop).map((t) => `<li><strong>${t.q.replace(/\?$/, '')}?</strong><p>${t.tip}</p></li>`).join('')}</ul>
+             <p class="card-body-text" style="margin:12px 0;">Repeat today’s lesson if it helps. Many women need a few weeks to feel the muscles clearly. A pelvic floor physical therapist can confirm your technique in one visit.</p>`
+          : `<p class="card-body-text" style="margin-bottom:12px;">Gentle lift, soft belly and buttocks, normal breathing and a full release: that’s exactly the technique that builds strength. Keep going for at least 3 months.</p>`}
+        <button type="button" class="primary-btn full-width" id="tech-done">Done</button>`;
+      sheet.querySelector('#tech-done').addEventListener('click', () => { modal.remove(); announceMilestones(); });
+      sheet.scrollTop = 0;
+    });
+  }
+
+  // =====================================================
+  // MILESTONES (no tricks: tied to real practice and the 3-month NICE goal)
+  // =====================================================
+  const practiceDaysCount = () => Object.keys(state.practiceLog).filter((k) => state.practiceLog[k] > 0).length;
+  const MILESTONES = [
+    { id: 'first', title: 'First session', need: 'Finish your first guided session', done: () => state.completedDays.length >= 1 },
+    { id: 'three', title: 'All 3 sets in a day', need: 'Do 3 sets in one day', done: () => Object.values(state.practiceLog).some((n) => n >= 3) },
+    { id: 'diary', title: 'Diary started', need: 'Log 5 diary entries', done: () => state.diary.length >= 5 },
+    { id: 'streak3', title: '3 days in a row', need: 'Practice 3 days in a row', done: () => Math.max(state.bestStreak || 0, state.streak || 0) >= 3 },
+    { id: 'week1', title: 'Week 1 complete', need: 'Complete Days 1–7', done: () => state.completedDays.length >= 7 },
+    { id: 'days21', title: '21 days of practice', need: 'Practice on 21 different days', done: () => practiceDaysCount() >= 21 },
+    { id: 'days30', title: '1 month of practice', need: 'Practice on 30 different days', done: () => practiceDaysCount() >= 30 },
+    { id: 'days90', title: '3 months: the goal', need: 'Practice on 90 days, the time guidelines recommend', done: () => practiceDaysCount() >= 90 }
+  ];
+
+  function renderMilestones() {
+    const grid = document.getElementById('milestone-grid');
+    const count = document.getElementById('milestones-count');
+    if (!grid) return;
+    const done = MILESTONES.filter((m) => m.done());
+    if (count) count.textContent = `${done.length} of ${MILESTONES.length}`;
+    grid.innerHTML = MILESTONES.map((m) => {
+      const ok = m.done();
+      return `<div class="milestone ${ok ? 'unlocked' : ''}">
+        <span class="milestone-icon" aria-hidden="true">${icon(ok ? 'award' : 'target')}</span>
+        <strong>${m.title}</strong>
+        <span class="milestone-need">${ok ? 'Unlocked' : m.need}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function announceMilestones() {
+    const fresh = MILESTONES.filter((m) => m.done() && !state.milestonesSeen.includes(m.id));
+    if (!fresh.length) return;
+    state.milestonesSeen.push(...fresh.map((m) => m.id));
+    saveState();
+    renderMilestones();
+    if (typeof showToast === 'function') showToast(`Milestone unlocked: ${fresh[fresh.length - 1].title}`);
+  }
+
+  // =====================================================
+  // PRACTICE HISTORY (each set with day and time)
+  // =====================================================
+  function formatWhen(ts) {
+    const d = new Date(ts);
+    return `${d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} · ${d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+  }
+
+  function renderPracticeHistory() {
+    const el = document.getElementById('practice-history');
+    if (!el) return;
+    const items = state.practiceHistory.slice(-12).reverse();
+    if (!items.length) {
+      el.innerHTML = '<p class="muted-small">Your sets will appear here after your first session.</p>';
+      return;
+    }
+    el.innerHTML = items.map((h) => `
+      <div class="history-item">
+        <span class="history-dot ${h.kind === 'session' ? 'session' : ''}" aria-hidden="true"></span>
+        <div><strong>${h.kind === 'session' ? `Guided session · Day ${h.day}` : 'Short set (8 slow holds)'}</strong><span>${formatWhen(h.ts)}</span></div>
+      </div>`).join('');
+  }
+
+  // =====================================================
+  // WELCOME BACK (after missing at least one full day; no guilt)
+  // =====================================================
+  function renderComeback() {
+    const card = document.getElementById('comeback-card');
+    if (!card) return;
+    const last = lastPracticeKey();
+    const today = dayKey();
+    const missed = last ? daysBetweenKeys(last, today) - 1 : 0;
+    const show = missed >= 1 && setsDoneToday() === 0 && state.comebackDismissed !== today;
+    card.hidden = !show;
+    const text = document.getElementById('comeback-text');
+    if (show && text) {
+      text.textContent = missed === 1
+        ? 'Missed yesterday? That’s completely normal. Your muscles remember: today is a fresh start. Just do today’s session.'
+        : `It’s been ${missed} days. No problem at all: your muscles remember. Today is a fresh start. Just do today’s session.`;
+    }
+  }
+
+  // =====================================================
+  // REPORT FOR MY DOCTOR (print / save as PDF / share)
+  // Everything is built on the phone; nothing is uploaded.
+  // =====================================================
+  const ANSWER_LABELS = {
+    leakType: { label: 'Leaks happen', stress: 'With coughing, sneezing, laughing, lifting or exercise (stress)', urge: 'With a sudden strong urge (urge)', mixed: 'Both (mixed)' },
+    frequency: { label: 'How often', occasional: 'A few times a month or less', weekly: 'A few times a week', daily: 'Once a day or more' },
+    bother: { label: 'How bothersome', mild: 'Mild', moderate: 'Moderate', high: 'Very bothersome' },
+    age: { label: 'Age range', '40-49': '40–49', '50-59': '50–59', '60+': '60+' },
+    lifeStage: { label: 'Life stage', peri_post: 'Perimenopause or post-menopause', postpartum_over6w: 'Gave birth more than 6 weeks ago', postpartum_under6w: 'Pregnant or gave birth less than 6 weeks ago' },
+    tried: { label: 'Tried before', none: 'Nothing structured', occasional_kegels: 'Occasional Kegels', pt_or_doctor: 'Saw a doctor or pelvic floor PT' },
+    redFlags: { label: 'Safety symptoms reported', no: 'No', yes: 'Yes' },
+    tension: { label: 'Pain or trouble relaxing reported', no: 'No', yes: 'Yes' }
+  };
+
+  function reportData() {
+    const now = new Date();
+    const last14 = [];
+    for (let i = 13; i >= 0; i--) {
+      const key = dayKey(new Date(now.getTime() - i * 86400000));
+      last14.push({ key, sets: state.practiceLog[key] || 0 });
+    }
+    const byDay = [1, 2, 3, 4, 5, 6, 7].map((d) => {
+      const entries = state.diary.filter((e) => e.day === d);
+      const c = (cat) => entries.filter((e) => e.category === cat).length;
+      return { day: d, leak: c('leak'), urge: c('urge'), trip: c('trip'), drink: c('drink'), night: entries.filter((e) => e.category === 'trip' && /night/i.test(e.detail)).length };
+    });
+    return { now, last14, byDay };
+  }
+
+  function openReport() {
+    const { now, last14, byDay } = reportData();
+    const old = document.getElementById('report-view');
+    if (old) old.remove();
+    const a = state.quizAnswers || {};
+    const answers = Object.keys(ANSWER_LABELS)
+      .filter((k) => a[k] !== undefined)
+      .map((k) => `<tr><th>${ANSWER_LABELS[k].label}</th><td>${escapeHtml(ANSWER_LABELS[k][a[k]] || a[k])}</td></tr>`).join('');
+    const setsTotal = last14.reduce((n, d) => n + d.sets, 0);
+    const daysPracticed = last14.filter((d) => d.sets > 0).length;
+    const fmtKey = (k) => new Date(`${k}T12:00:00`).toLocaleDateString([], { month: 'short', day: 'numeric' });
+    const diaryRows = byDay.filter((d) => d.leak + d.urge + d.trip + d.drink > 0);
+    const entries = state.diary.slice().sort((x, y) => x.timestamp - y.timestamp);
+    const tech = state.techniqueCheck;
+    const techText = tech
+      ? (tech.issues.length
+        ? `Self-check on ${fmtKey(tech.date)}: unsure about ${tech.issues.map((id) => ({ lift: 'feeling the lift', soft: 'keeping belly/buttocks soft', breath: 'breathing normally', release: 'fully relaxing', push: 'pushing down/bulging', pain: 'pain' }[id])).join(', ')}.`
+        : `Self-check on ${fmtKey(tech.date)}: no problems reported.`)
+      : 'Not done yet.';
+
+    const view = document.createElement('div');
+    view.id = 'report-view';
+    view.setAttribute('role', 'dialog');
+    view.setAttribute('aria-modal', 'true');
+    view.innerHTML = `
+      <div class="report-actions">
+        <button type="button" class="primary-btn" id="report-print">Print / Save PDF</button>
+        <button type="button" class="secondary-btn" id="report-share">Share</button>
+        <button type="button" class="secondary-btn" id="report-close">Close</button>
+      </div>
+      <article class="report-doc">
+        <header>
+          <p class="report-brand">DryDay · Bladder &amp; Pelvic Floor Practice Summary</p>
+          <h1>Report for my doctor or physical therapist</h1>
+          <p class="report-meta">Created ${now.toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' })} on the patient's phone. Self-reported information from an educational program; not a medical record or diagnosis.</p>
+        </header>
+
+        <section>
+          <h2>Practice (pelvic floor muscle training)</h2>
+          <table class="report-table">
+            <tr><th>Program</th><td>Week 1: ${state.completedDays.length} of 7 guided days completed</td></tr>
+            <tr><th>Last 14 days</th><td>Practiced on ${daysPracticed} of 14 days · ${setsTotal} ${setsTotal === 1 ? 'set' : 'sets'} in total (goal: 3 sets of 8 squeezes a day, NICE NG123)</td></tr>
+            <tr><th>Current streak</th><td>${state.streak} ${state.streak === 1 ? 'day' : 'days'}</td></tr>
+            <tr><th>Technique</th><td>${techText}</td></tr>
+          </table>
+          <div class="report-bars" aria-label="Sets per day, last 14 days">
+            ${last14.map((d) => `<div class="report-bar"><b>${d.sets}</b><span style="height:${Math.round(Math.min(d.sets, 3) / 3 * 64) + 2}px"></span><em>${fmtKey(d.key).replace(/\s/, '<br>')}</em></div>`).join('')}
+          </div>
+        </section>
+
+        <section>
+          <h2>About my symptoms (from the app questionnaire)</h2>
+          ${answers ? `<table class="report-table">${answers}</table>` : '<p>Questionnaire not completed.</p>'}
+        </section>
+
+        <section>
+          <h2>Bladder diary summary</h2>
+          ${diaryRows.length ? `<table class="report-table grid">
+            <tr><th>Program day</th><th>Leaks</th><th>Strong urges</th><th>Bathroom trips</th><th>At night</th><th>Drinks</th></tr>
+            ${diaryRows.map((d) => `<tr><td>Day ${d.day}</td><td>${d.leak}</td><td>${d.urge}</td><td>${d.trip}</td><td>${d.night}</td><td>${d.drink}</td></tr>`).join('')}
+          </table>` : '<p>No diary entries yet.</p>'}
+        </section>
+
+        ${entries.length ? `<section>
+          <h2>Diary entries</h2>
+          <table class="report-table grid small">
+            <tr><th>Date</th><th>Time</th><th>What</th><th>Detail</th></tr>
+            ${entries.map((e) => `<tr><td>${new Date(e.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}</td><td>${escapeHtml(e.timeLabel || '')}</td><td>${escapeHtml((DIARY_CATEGORIES[e.category] || {}).label || e.category)}</td><td>${escapeHtml(e.detail || '')}</td></tr>`).join('')}
+          </table>
+        </section>` : ''}
+
+        <section>
+          <h2>Questions I'd like to ask</h2>
+          <ul class="report-questions">
+            <li>Am I contracting the right muscles? Could you check my technique?</li>
+            <li>Is pelvic floor training right for my type of leaks, or do I need other treatment?</li>
+            <li>Should I change how often or how long I hold the squeezes?</li>
+            <li>Is there anything in my bladder diary that worries you?</li>
+          </ul>
+        </section>
+      </article>`;
+    document.body.appendChild(view);
+    document.body.classList.add('report-open');
+    const close = () => { view.remove(); document.body.classList.remove('report-open'); };
+    view.querySelector('#report-close').addEventListener('click', close);
+    view.querySelector('#report-print').addEventListener('click', () => { try { window.print(); } catch (_) {} });
+    view.querySelector('#report-share').addEventListener('click', async () => {
+      const lines = [
+        'DryDay — Bladder & pelvic floor practice summary',
+        `Week 1: ${state.completedDays.length}/7 days completed. Last 14 days: practiced ${daysPracticed} days, ${setsTotal} ${setsTotal === 1 ? 'set' : 'sets'}.`,
+        diaryRows.length ? 'Diary (leaks / urges / trips / drinks): ' + diaryRows.map((d) => `Day ${d.day}: ${d.leak}/${d.urge}/${d.trip}/${d.drink}`).join('; ') : 'No diary entries yet.',
+        `Technique: ${techText}`,
+        'Self-reported, educational program summary. Not a diagnosis.'
+      ];
+      const text = lines.join('\n');
+      try {
+        if (navigator.share) await navigator.share({ title: 'My DryDay summary', text });
+        else { await navigator.clipboard.writeText(text); showToast('Summary copied. Paste it in an email or message.'); }
+      } catch (_) {}
+    });
+  }
+
   function renderStats() {
     const daysDoneEl = document.getElementById('stat-days-done');
     const streakEl = document.getElementById('stat-streak');
@@ -391,6 +772,7 @@
     }
 
     renderPracticeCard();
+    renderComeback();
 
     const dayEntriesCount = state.diary.filter((e) => e.day === state.currentDay).length;
     if (homeDiaryCountEl) {
@@ -529,6 +911,17 @@
             </div>
           </div>
 
+          <div class="quiz-question-block">
+            <span class="quiz-question-title">8. Pain &amp; Relaxing Check — Do you often have any of these?</span>
+            <p class="muted-small" style="margin-bottom:8px;">
+              Pelvic or vaginal pain, pain during sex, pain when inserting a tampon, or trouble relaxing your pelvic muscles or starting to pee.
+            </p>
+            <div class="quiz-options">
+              <label class="radio-card"><input type="radio" name="tension" value="no" checked /><span>No</span></label>
+              <label class="radio-card"><input type="radio" name="tension" value="yes" /><span>Yes, one or more of these</span></label>
+            </div>
+          </div>
+
           <button type="submit" class="primary-btn full-width">See My Personalized Plan →</button>
         </form>
       </div>
@@ -551,6 +944,7 @@
       state.quizCompleted = true;
       state.pattern = leakType;
       state.redFlagsDetected = hasRedFlag;
+      state.tensionFlag = formData.get('tension') === 'yes';
       state.quizAnswers = Object.fromEntries(formData.entries());
       saveState();
 
@@ -585,6 +979,7 @@
       <h2 class="two-tone-heading">Your Pattern:<br /><span>${titleMap[pattern]}</span></h2>
       <p class="card-body-text" style="margin-bottom:14px;">${pInfo.summaryNote}</p>
       ${redFlagHtml}
+      ${state.tensionFlag ? TENSION_HTML : ''}
       <div class="disclaimer-box">
         <strong>Your Week 1 Focus:</strong>
         <p style="margin-top:4px;">Days 1–7 combine a 1-minute lesson, a 5-minute guided pelvic floor session tailored to your ${titleMap[pattern].toLowerCase()}, and one small daily habit.</p>
@@ -644,6 +1039,7 @@
           <p style="margin-top:4px; font-size:0.94rem;">${patternAdj.summaryNote}</p>
         </div>
         <p class="safety-note">${dayData.safetyNote || 'Stop if you feel pain. Never hold your breath or push down. If your symptoms get worse, talk to your doctor or a pelvic floor physical therapist.'}</p>
+        ${state.tensionFlag ? TENSION_HTML : ''}
         ${state.redFlagsDetected ? `
         <div class="redflag-alert-box" role="note">
           <strong>Safety reminder</strong>
@@ -663,6 +1059,7 @@
     });
 
     modal.querySelector('#btn-launch-player').addEventListener('click', () => {
+      primeVoice();
       startInteractivePlayer(modal, dayData, patternAdj);
     });
   }
@@ -797,6 +1194,7 @@
         <div class="session-toggles-row">
           <button type="button" class="chip-toggle-btn" id="sp-sound" aria-pressed="false">Sound</button>
           <button type="button" class="chip-toggle-btn" id="sp-vibe" aria-pressed="false">Vibration</button>
+          <button type="button" class="chip-toggle-btn" id="sp-voice" aria-pressed="false">Voice</button>
         </div>
       </div>
     `;
@@ -812,6 +1210,10 @@
       v.classList.toggle('active', state.settings.vibration);
       v.setAttribute('aria-pressed', String(state.settings.vibration));
       v.textContent = state.settings.vibration ? 'Vibration On' : 'Vibration Off';
+      const vc = el('sp-voice');
+      vc.classList.toggle('active', !!state.settings.voice);
+      vc.setAttribute('aria-pressed', String(!!state.settings.voice));
+      vc.textContent = state.settings.voice ? 'Voice On' : 'Voice Off';
     }
 
     function renderStep(announce) {
@@ -841,6 +1243,7 @@
 
       if (announce) {
         el('sp-live').textContent = `${PHASE_LABELS[step.phase]}, ${step.seconds} seconds`;
+        speak(step.blockIndex === 0 ? 'Get comfortable, and breathe normally.' : VOICE_LINES[step.phase]);
         if (step.phase === 'squeeze' || step.phase === 'inhale') {
           playCueTone(620, 200);
           triggerVibration(120);
@@ -875,7 +1278,8 @@
 
     function finishSession() {
       clearSessionTimer();
-      const setsToday = addPracticeSet();
+      const setsToday = addPracticeSet(dayData.isMiniSet ? 'short' : 'session', dayData.day);
+      speak('Well done. Session complete.');
       if (!dayData.isMiniSet) markDayComplete(dayData.day);
       playCueTone(700, 400);
       triggerVibration([80, 80, 160]);
@@ -895,6 +1299,7 @@
         modal.querySelector('#sp-done').addEventListener('click', () => {
           modal.remove();
           switchTab('home');
+          announceMilestones();
         });
         return;
       }
@@ -915,21 +1320,46 @@
           <strong>${icon('sparkle')} Today's small habit:</strong>
           <p style="margin-top:4px;">${dayData.habit}</p>
         </div>
+        ${!state.techniqueCheck ? `
+        <div class="technique-offer">
+          <strong>Am I doing it right?</strong>
+          <p>Take the 30-second technique check while the session is fresh.</p>
+          <button type="button" class="secondary-btn" id="sp-technique">Check my technique →</button>
+        </div>` : ''}
         <button type="button" id="sp-done" class="primary-btn full-width">Back to Home</button>
       `;
       modal.querySelector('#sp-done').addEventListener('click', () => {
         modal.remove();
         switchTab('home');
+        announceMilestones();
       });
+      const techBtn = modal.querySelector('#sp-technique');
+      if (techBtn) {
+        techBtn.addEventListener('click', () => {
+          modal.remove();
+          switchTab('home');
+          openTechniqueCheck();
+        });
+      }
     }
 
     el('sp-close').addEventListener('click', () => {
       clearSessionTimer();
+      stopSpeaking();
       modal.remove();
+    });
+
+    el('sp-voice').addEventListener('click', () => {
+      state.settings.voice = !state.settings.voice;
+      saveState();
+      renderToggles();
+      syncSettingsControls();
+      if (state.settings.voice) speak('Voice coach on.', true); else stopSpeaking();
     });
 
     el('sp-pause').addEventListener('click', () => {
       paused = !paused;
+      if (paused) stopSpeaking();
       el('sp-pause').textContent = paused ? 'Resume' : 'Pause';
       el('sp-live').textContent = paused ? 'Paused' : 'Resumed';
     });
@@ -974,6 +1404,19 @@
     return `${y}-${m}-${d}`;
   }
 
+  /** The "app day": with "My day starts at 2 AM", 01:30 still counts as the day before. */
+  function dayKey(date = new Date()) {
+    const shift = Math.min(Math.max(Number(state.settings.dayStart) || 0, 0), 4);
+    return toDateKey(new Date(date.getTime() - shift * 3600000));
+  }
+
+  const daysBetweenKeys = (a, b) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
+
+  function lastPracticeKey() {
+    const keys = Object.keys(state.practiceLog).filter((k) => state.practiceLog[k] > 0).sort();
+    return keys.length ? keys[keys.length - 1] : null;
+  }
+
   // =====================================================
   // DAILY PRACTICE: 3 SETS PER DAY
   // NICE NG123 1.4.5: "at least 8 contractions performed 3 times per day";
@@ -981,12 +1424,14 @@
   // two short sets of 8 slow holds complete the day.
   // =====================================================
   function setsDoneToday() {
-    return state.practiceLog[toDateKey(new Date())] || 0;
+    return state.practiceLog[dayKey()] || 0;
   }
 
-  function addPracticeSet() {
-    const key = toDateKey(new Date());
+  function addPracticeSet(kind = 'short', day = state.currentDay) {
+    const key = dayKey();
     state.practiceLog[key] = (state.practiceLog[key] || 0) + 1;
+    state.practiceHistory.push({ ts: Date.now(), kind, day });
+    if (state.practiceHistory.length > 400) state.practiceHistory = state.practiceHistory.slice(-400);
     saveState();
     renderPracticeCard();
     if (typeof syncPush === 'function') syncPush();
@@ -1018,7 +1463,7 @@
     clearSessionTimer();
     const week1 = PROGRAM.weeks[0];
     // If a guided session was done today, use that day's timing; otherwise the current day
-    const practicedDay = state.lastCompletedDate === toDateKey(new Date()) && state.lastSessionDay ? state.lastSessionDay : state.currentDay;
+    const practicedDay = state.lastCompletedDate === dayKey() && state.lastSessionDay ? state.lastSessionDay : state.currentDay;
     const dayData = week1.days.find((d) => d.day === practicedDay) || week1.days[0];
     const firstHold = dayData.blocks.find((b) => !b.isRest && !b.isBreathing && b.holdSeconds >= 3) || { holdSeconds: 3, relaxSeconds: 6, position: 'Sitting or Lying Down' };
 
@@ -1059,12 +1504,13 @@
     }
 
     // Streak: consecutive calendar days with at least one completed session
-    const today = toDateKey(new Date());
-    const yesterday = toDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
+    const today = dayKey();
+    const yesterday = dayKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
     if (state.lastCompletedDate !== today) {
       state.streak = state.lastCompletedDate === yesterday ? state.streak + 1 : 1;
       state.lastCompletedDate = today;
     }
+    state.bestStreak = Math.max(state.bestStreak || 0, state.streak);
 
     // Move "today" to the next day that is not done yet
     const days = PROGRAM.weeks[0].days.map((d) => d.day);
@@ -1286,6 +1732,7 @@
     renderDiaryAndProgress();
     renderHomeDayContent();
     triggerVibration(40);
+    announceMilestones();
   }
 
   function showDiaryOptions(category) {
@@ -1396,6 +1843,8 @@
 
   function renderDiaryAndProgress() {
     renderStats();
+    renderMilestones();
+    renderPracticeHistory();
     renderDiaryEntries();
     renderWeeklyChart();
     renderComparison();
@@ -1417,6 +1866,12 @@
     if (sound) sound.checked = !!state.settings.sound;
     if (vibe) vibe.checked = !!state.settings.vibration;
     if (remOn) remOn.checked = !!state.settings.reminderEnabled;
+    const voiceT = document.getElementById('setting-voice-toggle');
+    if (voiceT) voiceT.checked = !!state.settings.voice;
+    const discreetT = document.getElementById('setting-discreet-toggle');
+    if (discreetT) discreetT.checked = !!state.settings.discreet;
+    const dayStartSel = document.getElementById('setting-day-start');
+    if (dayStartSel) dayStartSel.value = String(Number(state.settings.dayStart) || 0);
     document.querySelectorAll('[data-reminder-slot]').forEach((input) => {
       const i = parseInt(input.getAttribute('data-reminder-slot'), 10);
       input.value = state.settings.reminderTimes[i];
@@ -1426,7 +1881,7 @@
   function checkReminder() {
     if (!state.unlocked || !state.disclaimerAccepted || !state.settings.reminderEnabled) return;
     const now = new Date();
-    const today = toDateKey(now);
+    const today = dayKey(now);
     const shown = state.settings.remindersShown;
     if (shown.date !== today) {
       shown.date = today;
@@ -1455,7 +1910,7 @@
     if (banner) banner.hidden = false;
     try {
       if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
-        new Notification('DryDay', { body: text });
+        new Notification(state.settings.discreet ? 'Daily reminder' : 'DryDay', { body: state.settings.discreet ? 'Time for your routine' : text });
       }
     } catch (e) {}
   }
@@ -1661,7 +2116,9 @@
       subscription: sub.toJSON(),
       tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
       times: state.settings.reminderTimes,
-      progress: { date: toDateKey(new Date()), sets: setsDoneToday() }
+      progress: { date: dayKey(), sets: setsDoneToday(), last: lastPracticeKey() },
+      discreet: !!state.settings.discreet,
+      dayStart: Number(state.settings.dayStart) || 0
     };
   }
 
@@ -1683,9 +2140,9 @@
       const payload = pushPayload(sub);
       await postPush('POST', payload);
       ls.set(PUSH_ON_KEY, '1');
-      ls.set(PUSH_SENT_KEY, JSON.stringify({ times: payload.times, progress: payload.progress }));
-      reg.showNotification('Reminders turned on', {
-        body: 'We’ll remind you at your 3 practice times. You can change them in More.',
+      ls.set(PUSH_SENT_KEY, JSON.stringify({ times: payload.times, progress: payload.progress, discreet: payload.discreet, dayStart: payload.dayStart }));
+      reg.showNotification(state.settings.discreet ? 'Reminders on' : 'Reminders turned on', {
+        body: 'We\u2019ll remind you at your 3 times. You can change them in More.',
         icon: 'icons/icon-192.png',
         tag: 'dryday-welcome'
       }).catch(() => {});
@@ -1717,7 +2174,7 @@
       const sub = await reg.pushManager.getSubscription();
       if (!sub) { ls.del(PUSH_ON_KEY); return; }
       const payload = pushPayload(sub);
-      const json = JSON.stringify({ times: payload.times, progress: payload.progress });
+      const json = JSON.stringify({ times: payload.times, progress: payload.progress, discreet: payload.discreet, dayStart: payload.dayStart });
       if (ls.get(PUSH_SENT_KEY) === json) return;
       await postPush('POST', payload);
       ls.set(PUSH_SENT_KEY, json);
@@ -1837,6 +2294,20 @@
         switchTab('progress');
         return;
       }
+      if (e.target.closest('[data-action="technique-check"]')) {
+        openTechniqueCheck();
+        return;
+      }
+      if (e.target.closest('[data-action="open-report"]')) {
+        openReport();
+        return;
+      }
+      if (e.target.closest('[data-action="dismiss-comeback"]')) {
+        state.comebackDismissed = dayKey();
+        saveState();
+        renderComeback();
+        return;
+      }
       if (e.target.closest('[data-action="install"]')) {
         startInstall();
         return;
@@ -1896,6 +2367,22 @@
 
     const vibe = document.getElementById('setting-vibration-toggle');
     if (vibe) vibe.addEventListener('change', () => { state.settings.vibration = vibe.checked; saveState(); triggerVibration(60); });
+    const voiceT = document.getElementById('setting-voice-toggle');
+    if (voiceT) voiceT.addEventListener('change', () => {
+      state.settings.voice = voiceT.checked;
+      saveState();
+      if (voiceT.checked) { primeVoice(); speak('Voice coach on. Squeeze and lift. Relax completely.', true); } else stopSpeaking();
+    });
+    const discreetT = document.getElementById('setting-discreet-toggle');
+    if (discreetT) discreetT.addEventListener('change', () => { state.settings.discreet = discreetT.checked; saveState(); syncPush(); });
+    const dayStartSel = document.getElementById('setting-day-start');
+    if (dayStartSel) dayStartSel.addEventListener('change', () => {
+      state.settings.dayStart = Number(dayStartSel.value) || 0;
+      saveState();
+      renderPracticeCard();
+      renderComeback();
+      syncPush();
+    });
 
     const remOn = document.getElementById('setting-reminder-enabled');
     if (remOn) {

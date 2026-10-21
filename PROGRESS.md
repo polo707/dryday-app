@@ -41,6 +41,14 @@
   - Lessons: lists shown as clean rows; player: soft double ring around the circle; completion: "Sets completed today" dots; Progress: days-completed bar; Plan: timeline with number/check dots and the current day highlighted.
   - `REVIEWER` in `app.js` is `null` on purpose: a "Program reviewed by …, DPT" card appears only when a REAL licensed pelvic floor PT has reviewed the program and agreed to be named. No stock "doctor" images, no invented reviewers or testimonials (FTC endorsement rules).
   - `PHOTOS` in `app.js` (access, home, done) is empty: optional lifestyle photos go in `/images` and are never presented as customers.
+- [x] **Update — Features from competitor review analysis** (reviews of Kegel Trainer, Leap Fitness, Amila, mEL Studio, Easy Kegel, Riafy, Squeezy/NHS; NAFC and Mumsnet):
+  - **Safety:** quiz question 8 (pelvic/vaginal pain, pain during sex or tampon use, trouble relaxing or starting to pee). If yes, the result and every lesson recommend a pelvic floor PT before squeezing exercises (possible overactive pelvic floor, per NAFC guidance).
+  - **"Am I doing it right?"** 6-question technique check (lift, soft belly/buttocks, breathing, full release, no pushing down, no pain) with a tip for each problem; pain → pause and see a clinician. Offered after a guided session until done once, and in More.
+  - **Voice coach** (optional, off by default): phone's built-in voice says "Squeeze and lift" / "Relax completely" / breathing cues; toggle in the player and in More; works offline; primed on tap for iPhone.
+  - **Discreet notifications:** push and local notifications say "Daily reminder" with no app name or health words (server `messageFor`). Session chime already follows the sound setting.
+  - **Report for my doctor:** printable / Save as PDF / Share summary built on the phone: practice (last 14 days chart), questionnaire answers, diary summary by day (incl. night trips), all diary entries, technique self-check, suggested questions for the clinician.
+  - **Milestones** (8, tied to real practice and the 3-month NICE goal) with a toast when unlocked; **Practice history** with date and time of each set; **Welcome back** card after a missed day and a no-guilt "fresh start" push the next morning; **My day starts at** (midnight–4 AM) for night owls, applied in the app and on the push server.
+  - Tests: `tests/push.test.mjs` extended (discreet text, fresh start, night-owl day start); end-to-end browser test of every feature.
 
 ## Files in the Repository
 1. `README.md`

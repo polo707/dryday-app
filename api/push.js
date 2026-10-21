@@ -1,11 +1,11 @@
 /**
  * /api/push — saves or removes a phone's reminder subscription.
- *   POST   { subscription, tz, times: ['09:00','14:00','19:00'], progress: { date, sets } } → create or update
+ *   POST   { subscription, tz, times: ['09:00','14:00','19:00'], progress: { date, sets, last }, discreet, dayStart } → create or update
  *   DELETE { endpoint } → remove
  * Each subscription is a private JSON file in Vercel Blob: push/subs/<id>.json
  * No health data is stored: only the push address, time zone, 3 times and the number of sets done today.
  */
-import { readJson, send, validSubscription, validTimeZone, cleanTimes, cleanProgress, subscriptionId, blobGetJSON, blobPutJSON, blobList, blobDelete } from './_push.js';
+import { readJson, send, validSubscription, validTimeZone, cleanTimes, cleanProgress, cleanDayStart, subscriptionId, blobGetJSON, blobPutJSON, blobList, blobDelete } from './_push.js';
 
 const path = (endpoint) => `push/subs/${subscriptionId(endpoint)}.json`;
 
@@ -22,6 +22,8 @@ export default async function handler(req, res) {
         tz,
         times: cleanTimes(body.times),
         progress: cleanProgress(body.progress) || (prev && prev.progress) || null,
+        discreet: body.discreet === true,
+        dayStart: cleanDayStart(body.dayStart),
         sent: (prev && prev.sent) || null,
         createdAt: (prev && prev.createdAt) || new Date().toISOString(),
         updatedAt: new Date().toISOString(),

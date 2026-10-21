@@ -119,17 +119,29 @@ export function cleanTimes(times) {
   return DEFAULT_TIMES.map((d, i) => (TIME.test(list[i]) ? list[i] : d));
 }
 
-/** How many practice sets were done on a given local date (so we don't remind for a set already done). */
+/**
+ * How many practice sets were done on a given app day (so we don't remind for a set already done),
+ * plus the last app day with any practice (for the gentle "welcome back" message).
+ */
 export function cleanProgress(p) {
   if (!p || !DATE.test(p.date)) return null;
-  return { date: p.date, sets: Math.min(Math.max(Number(p.sets) || 0, 0), 9) };
+  const out = { date: p.date, sets: Math.min(Math.max(Number(p.sets) || 0, 0), 9) };
+  if (DATE.test(p.last)) out.last = p.last;
+  return out;
 }
 
-/** Local date (YYYY-MM-DD) and minutes since midnight in the user's time zone. */
-export function localNow(tz, now = new Date()) {
+/** "My day starts at" (0–4 h after midnight) for night owls. */
+export const cleanDayStart = (h) => Math.min(Math.max(Math.floor(Number(h) || 0), 0), 4);
+
+/**
+ * App day (YYYY-MM-DD) and minutes since the start of that day in the user's time zone.
+ * With dayStart = 2, 01:30 on the 22nd still belongs to the 21st.
+ */
+export function localNow(tz, now = new Date(), dayStart = 0) {
+  const shifted = new Date(now.getTime() - cleanDayStart(dayStart) * 3600000);
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
     timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-  }).formatToParts(now).map((p) => [p.type, p.value]));
+  }).formatToParts(shifted).map((p) => [p.type, p.value]));
   return { date: `${parts.year}-${parts.month}-${parts.day}`, minutes: Number(parts.hour) * 60 + Number(parts.minute) };
 }
 
@@ -139,6 +151,30 @@ export const MESSAGES = [
   { title: 'DryDay', body: 'Your 2-minute set is ready' },
 ];
 
+const DISCREET = [
+  { title: 'Daily reminder', body: 'Time for your 5-minute routine' },
+  { title: 'Daily reminder', body: 'Time for your 2-minute routine' },
+  { title: 'Daily reminder', body: 'Time for your 2-minute routine' },
+];
+
+const daysBetween = (a, b) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
+
+/** Text for a reminder: discreet if asked; a no-guilt "fresh start" if she missed at least one full day. */
+export function messageFor(record, slot, now = new Date()) {
+  const discreet = record.discreet === true;
+  const base = (discreet ? DISCREET : MESSAGES)[slot] || MESSAGES[0];
+  const last = record.progress && record.progress.last;
+  if (slot === 0 && last) {
+    const { date } = localNow(record.tz, now, record.dayStart);
+    if (daysBetween(last, date) >= 2) {
+      return discreet
+        ? { title: 'Daily reminder', body: 'A fresh start today. 5 minutes is enough.' }
+        : { title: 'DryDay', body: 'Missed a day? No problem. Today is a fresh start: 5 minutes is enough.' };
+    }
+  }
+  return { ...base };
+}
+
 /**
  * Which reminder to send now (0, 1 or 2), or -1 for none.
  * The cron runs once an hour (Vercel Hobby: once per day per job, 24 jobs, ±59 min).
@@ -147,13 +183,14 @@ export const MESSAGES = [
  * only the latest due slot is sent. A slot more than 3 hours late is dropped.
  */
 export function dueSlot(record, now = new Date()) {
-  const { date, minutes } = localNow(record.tz, now);
+  const shift = cleanDayStart(record.dayStart);
+  const { date, minutes } = localNow(record.tz, now, shift);
   const sent = record.sent && record.sent.date === date ? record.sent.slots || [] : [];
   const setsToday = record.progress && record.progress.date === date ? record.progress.sets : 0;
   let slot = -1;
   cleanTimes(record.times).forEach((t, i) => {
     const [h, m] = t.split(':').map(Number);
-    const due = h * 60 + m;
+    const due = (h * 60 + m - shift * 60 + 1440) % 1440; // minutes since the start of the app day
     if (minutes >= due && minutes - due <= 180 && !sent.includes(i) && setsToday <= i) slot = i;
   });
   return slot;
@@ -161,7 +198,7 @@ export function dueSlot(record, now = new Date()) {
 
 /** Marks the slot (and earlier ones) as handled for today. */
 export function markSent(record, slot, now = new Date()) {
-  const { date } = localNow(record.tz, now);
+  const { date } = localNow(record.tz, now, record.dayStart);
   const prev = record.sent && record.sent.date === date ? record.sent.slots || [] : [];
   const slots = new Set(prev);
   for (let i = 0; i <= slot; i++) slots.add(i);

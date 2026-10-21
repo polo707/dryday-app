@@ -48,6 +48,9 @@ The app shows its own step-by-step tutorial (Home card and **More → Add to Hom
 - **iPhone (Safari):** Share → Add to Home Screen → Add. Chrome/Firefox/Edge on iPhone: Share at the top right. Inside Instagram/Facebook: copy the link and open it in Safari first.
 - Access code on first launch: `DRYDAY2026`
 
+### Support features
+Technique check ("Am I doing it right?"), optional voice coach, discreet notifications, report for the doctor (print / PDF / share), milestones, practice history, "welcome back" after a missed day, and "My day starts at" for night owls. The quiz also screens for pain / trouble relaxing and recommends a pelvic floor PT before squeezing exercises.
+
 ### Daily notifications (Web Push)
 - Turned on from the Home card or **More → Enable Reminders**. Up to 3 per day at her chosen times (default 09:00 / 14:00 / 19:00, her own time zone). A reminder is skipped if she already did that set.
 - Android: Chrome. iPhone/iPad: only after adding to the Home Screen and opening from the icon (iOS 16.4+) — the app explains this.
