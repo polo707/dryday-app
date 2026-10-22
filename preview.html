@@ -117,6 +117,27 @@
   }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
   .note { color: var(--muted); font-size: 12px; text-align: center; padding: 0 max(14px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px)); }
+  /* Code panels: both sides on wide screens, a "Código" tab on phones. */
+  .main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr) minmax(0, 1fr); }
+  .code { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: #120e14; border-right: 1px solid var(--line); }
+  .code.right { border-right: 0; border-left: 1px solid var(--line); }
+  .code-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .code-head select { flex: 1; min-width: 0; }
+  .code-meta { color: var(--muted); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .code-body { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 8px 0; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #e6dde3; tab-size: 2; }
+  .ln { display: block; padding: 0 12px 0 0; white-space: pre; }
+  .ln::before { content: attr(data-n); display: inline-block; width: 4.2em; padding-right: 12px; text-align: right; color: #6b5d68; user-select: none; }
+  .ln.new { background: rgba(111, 211, 154, .16); box-shadow: inset 3px 0 0 var(--live); }
+  .views { display: none; }
+  .views button[aria-pressed="true"] { background: var(--accent); color: #2a1520; border-color: var(--accent); font-weight: 700; }
+  @media (max-width: 999px) {
+    .main { grid-template-columns: minmax(0, 1fr); }
+    .views { display: inline-flex; gap: 6px; }
+    .code.right { display: none; }
+    .main[data-view="phone"] .code.left { display: none; }
+    .main[data-view="code"] .stage { display: none; }
+    .code.left { border-right: 0; }
+  }
   @media (prefers-reduced-motion: reduce) { .dot { animation: none; } .toast { transition: none; } }
 </style>
 </head>
@@ -133,10 +154,19 @@
     <option value="15promax">iPhone 15 Pro Max</option>
     <option value="se">iPhone SE</option>
   </select>
+  <span class="views" role="group" aria-label="Vista">
+    <button type="button" id="viewPhone" aria-pressed="true">iPhone</button>
+    <button type="button" id="viewCode" aria-pressed="false">Código</button>
+  </span>
   <button type="button" id="reload">Recargar</button>
   <a class="btn" href="./" target="_blank" rel="noopener">Abrir la app</a>
 </header>
 
+<main class="main" id="main" data-view="phone">
+<section class="code left" aria-label="Código, panel izquierdo">
+  <div class="code-head"><label for="fileL" style="position:absolute;left:-9999px">Archivo</label><select id="fileL"></select><span class="code-meta" id="metaL"></span></div>
+  <pre class="code-body" id="bodyL"></pre>
+</section>
 <div class="stage" id="stage">
   <div class="toast" id="toast">Cambios nuevos cargados</div>
   <div class="scaler" id="scaler">
@@ -150,6 +180,11 @@
     </div>
   </div>
 </div>
+<section class="code right" aria-label="Código, panel derecho">
+  <div class="code-head"><label for="fileR" style="position:absolute;left:-9999px">Archivo</label><select id="fileR"></select><span class="code-meta" id="metaR"></span></div>
+  <pre class="code-body" id="bodyR"></pre>
+</section>
+</main>
 <p class="note">Se actualiza sola cuando se publican cambios en la app (GitHub tarda 1 o 2 minutos en publicarlos).</p>
 
 <script>
@@ -163,7 +198,10 @@
     '15promax': { w: 430, h: 932, small: false },
     'se':       { w: 375, h: 667, small: true }
   };
-  var FILES = ['./', 'app.js', 'program.js', 'styles.css', 'manifest.webmanifest'];
+  var FILES = ['./', 'app.js', 'program.js', 'styles.css', 'manifest.webmanifest', 'sw.js'];
+  var LABELS = { './': 'index.html' };
+  var texts = {};      // latest text of each file
+  var fresh = {};      // file -> set of line numbers that changed in the last update
   var POLL_MS = 5000;
 
   var stage = document.getElementById('stage');
@@ -216,8 +254,83 @@
   function snapshot() {
     return Promise.all(FILES.map(function (f) {
       return fetch(f, { cache: 'reload' }).then(function (r) { return r.ok ? r.text() : ''; });
-    })).then(function (texts) { return texts.map(hash).join('.'); });
+    })).then(function (list) {
+      list.forEach(function (t, i) {
+        var f = FILES[i], old = texts[f];
+        if (old !== undefined && old !== t) fresh[f] = changedLines(old, t);
+        texts[f] = t;
+      });
+      renderCode();
+      return list.map(hash).join('.');
+    });
   }
+
+  // Lines in the new version that did not exist in the old one (marked green).
+  function changedLines(oldText, newText) {
+    var count = {};
+    oldText.split('\n').forEach(function (l) { count[l] = (count[l] || 0) + 1; });
+    var out = {};
+    newText.split('\n').forEach(function (l, i) {
+      if (count[l]) count[l]--; else out[i] = true;
+    });
+    return out;
+  }
+
+  var panes = [
+    { sel: document.getElementById('fileL'), body: document.getElementById('bodyL'), meta: document.getElementById('metaL'), key: 'dryday-preview-fileL', def: 'app.js', shown: null },
+    { sel: document.getElementById('fileR'), body: document.getElementById('bodyR'), meta: document.getElementById('metaR'), key: 'dryday-preview-fileR', def: 'styles.css', shown: null }
+  ];
+  panes.forEach(function (p) {
+    FILES.forEach(function (f) {
+      var o = document.createElement('option'); o.value = f; o.textContent = LABELS[f] || f; p.sel.appendChild(o);
+    });
+    var v = p.def;
+    try { var sv = localStorage.getItem(p.key); if (sv && FILES.indexOf(sv) >= 0) v = sv; } catch (e) {}
+    p.sel.value = v;
+    p.sel.addEventListener('change', function () {
+      try { localStorage.setItem(p.key, p.sel.value); } catch (e) {}
+      p.shown = null; renderCode();
+    });
+  });
+
+  function renderCode() {
+    panes.forEach(function (p) {
+      var f = p.sel.value, t = texts[f];
+      if (t === undefined) return;
+      var stamp = f + '|' + hash(t) + '|' + Object.keys(fresh[f] || {}).length;
+      if (p.shown === stamp) return;
+      var keepScroll = p.shown && p.shown.split('|')[0] === f && p.shown.split('|')[1] === String(hash(t));
+      var top = p.body.scrollTop;
+      var marks = fresh[f] || {};
+      var frag = document.createDocumentFragment(), first = null;
+      t.split('\n').forEach(function (line, i) {
+        var el = document.createElement('span');
+        el.className = 'ln' + (marks[i] ? ' new' : '');
+        el.setAttribute('data-n', i + 1);
+        el.textContent = line || ' ';
+        if (marks[i] && first === null) first = el;
+        frag.appendChild(el);
+      });
+      p.body.textContent = '';
+      p.body.appendChild(frag);
+      var n = Object.keys(marks).length;
+      p.meta.textContent = t.split('\n').length + ' líneas' + (n ? ' · ' + n + ' nuevas' : '');
+      if (first && !keepScroll) p.body.scrollTop = Math.max(first.offsetTop - 80, 0);
+      else p.body.scrollTop = top;
+      p.shown = stamp;
+    });
+  }
+
+  var main = document.getElementById('main');
+  var bPhone = document.getElementById('viewPhone'), bCode = document.getElementById('viewCode');
+  function setView(v) {
+    main.setAttribute('data-view', v);
+    bPhone.setAttribute('aria-pressed', String(v === 'phone'));
+    bCode.setAttribute('aria-pressed', String(v === 'code'));
+    layout();
+  }
+  bPhone.addEventListener('click', function () { setView('phone'); });
+  bCode.addEventListener('click', function () { setView('code'); });
 
   var last = null;
   function check() {
