@@ -4,7 +4,7 @@
  * Strategy: network first with a time limit; the saved copy is used offline or on a very slow connection.
  * When you publish big changes, bump VERSION to clear old copies.
  */
-const VERSION = 'v5';
+const VERSION = 'v6';
 const NETWORK_TIMEOUT = 3500; // ms
 const CACHE = `dryday-${VERSION}`;
 
@@ -21,6 +21,7 @@ const PRECACHE = [
   './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png',
   './icons/favicon-32.png',
+  './img/welcome-pelvis.webp',
 ];
 
 self.addEventListener('install', (event) => {
