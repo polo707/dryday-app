@@ -126,6 +126,9 @@
   <span class="status" id="status" role="status"><span class="dot"></span><span id="statusText">Conectando…</span></span>
   <label for="device" style="position:absolute;left:-9999px">Modelo</label>
   <select id="device">
+    <option value="16">iPhone 16</option>
+    <option value="16pro">iPhone 16 Pro</option>
+    <option value="16promax">iPhone 16 Pro Max</option>
     <option value="15pro">iPhone 15 Pro</option>
     <option value="15promax">iPhone 15 Pro Max</option>
     <option value="se">iPhone SE</option>
@@ -153,6 +156,9 @@
 (function () {
   // Screen size in CSS points (what the app sees as its width and height).
   var DEVICES = {
+    '16':       { w: 393, h: 852, small: false },
+    '16pro':    { w: 402, h: 874, small: false },
+    '16promax': { w: 440, h: 956, small: false },
     '15pro':    { w: 393, h: 852, small: false },
     '15promax': { w: 430, h: 932, small: false },
     'se':       { w: 375, h: 667, small: true }
