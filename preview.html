@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="robots" content="noindex" />
+<title>DryDay · Vista iPhone</title>
+<style>
+  /* Live iPhone preview of the DryDay app (same site, so the app runs for real inside the frame).
+     Not part of the app: the service worker skips this page. */
+  :root {
+    --bg: #17121a;
+    --panel: #221b26;
+    --line: #3a2f40;
+    --text: #f3ece8;
+    --muted: #a99aa6;
+    --accent: #e7b7c0;
+    --live: #6fd39a;
+    --busy: #f0c46a;
+    --frame: #2b2b2e;
+    --frame-edge: #48484d;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: max(10px, env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-right, 0px)) 10px max(14px, env(safe-area-inset-left, 0px));
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+  }
+  .brand { font-weight: 700; letter-spacing: .01em; margin-right: auto; }
+  .status { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--live); box-shadow: 0 0 0 0 rgba(111, 211, 154, .6); animation: pulse 2s infinite; }
+  .status.busy .dot { background: var(--busy); animation: none; }
+  .status.off .dot { background: var(--muted); animation: none; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(111, 211, 154, .55); } 70% { box-shadow: 0 0 0 8px rgba(111, 211, 154, 0); } 100% { box-shadow: 0 0 0 0 rgba(111, 211, 154, 0); } }
+  select, button, a.btn {
+    font: inherit;
+    color: var(--text);
+    background: #2e2533;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 6px 10px;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  button:focus-visible, select:focus-visible, a.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .stage { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+  .scaler { position: absolute; left: 50%; top: 50%; transform-origin: center center; }
+  .phone {
+    position: relative;
+    padding: 12px;
+    border-radius: 62px;
+    background: var(--frame);
+    box-shadow: inset 0 0 0 2px var(--frame-edge), 0 30px 70px rgba(0, 0, 0, .55);
+  }
+  .phone.small { border-radius: 46px; padding: 54px 10px; }
+  .screen {
+    position: relative;
+    overflow: hidden;
+    border-radius: 50px;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+  }
+  .phone.small .screen { border-radius: 4px; }
+  .statusbar {
+    height: 54px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px 0 38px;
+    font: 600 16px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #111;
+    background: #fff;
+    position: relative;
+  }
+  .phone.small .statusbar { height: 20px; padding: 0 8px; font-size: 12px; }
+  .island { position: absolute; left: 50%; top: 11px; width: 124px; height: 36px; margin-left: -62px; border-radius: 20px; background: #000; }
+  .phone.small .island { display: none; }
+  .sb-icons { display: inline-flex; gap: 6px; align-items: center; }
+  .batt { width: 25px; height: 12px; border: 1.5px solid #111; border-radius: 4px; position: relative; padding: 1.5px; }
+  .batt::before { content: ""; display: block; height: 100%; width: 80%; background: #111; border-radius: 1.5px; }
+  iframe { border: 0; display: block; width: 100%; flex: 1; background: #fff; }
+  .home { position: absolute; left: 50%; bottom: 8px; width: 134px; height: 5px; margin-left: -67px; border-radius: 3px; background: rgba(0, 0, 0, .78); pointer-events: none; }
+  .phone.small .home { display: none; }
+  .homebtn { display: none; position: absolute; left: 50%; bottom: 10px; width: 38px; height: 38px; margin-left: -19px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--frame-edge); }
+  .phone.small .homebtn { display: block; }
+  .toast {
+    position: absolute;
+    left: 50%;
+    top: 18px;
+    transform: translate(-50%, -12px);
+    opacity: 0;
+    background: var(--live);
+    color: #0f2418;
+    font-weight: 700;
+    padding: 7px 14px;
+    border-radius: 999px;
+    transition: opacity .25s, transform .25s;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .note { color: var(--muted); font-size: 12px; text-align: center; padding: 0 max(14px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px)); }
+  @media (prefers-reduced-motion: reduce) { .dot { animation: none; } .toast { transition: none; } }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">DryDay · Vista iPhone</span>
+  <span class="status" id="status" role="status"><span class="dot"></span><span id="statusText">Conectando…</span></span>
+  <label for="device" style="position:absolute;left:-9999px">Modelo</label>
+  <select id="device">
+    <option value="15pro">iPhone 15 Pro</option>
+    <option value="15promax">iPhone 15 Pro Max</option>
+    <option value="se">iPhone SE</option>
+  </select>
+  <button type="button" id="reload">Recargar</button>
+  <a class="btn" href="./" target="_blank" rel="noopener">Abrir la app</a>
+</header>
+
+<div class="stage" id="stage">
+  <div class="toast" id="toast">Cambios nuevos cargados</div>
+  <div class="scaler" id="scaler">
+    <div class="phone" id="phone">
+      <div class="screen" id="screen">
+        <div class="statusbar"><span id="clock">9:41</span><span class="island"></span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1" fill="#111"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="#111"/><rect x="10" y="3" width="3" height="9" rx="1" fill="#111"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#111"/></svg><span class="batt"></span></span></div>
+        <iframe id="app" title="App DryDay" src="./"></iframe>
+        <div class="home"></div>
+      </div>
+      <div class="homebtn"></div>
+    </div>
+  </div>
+</div>
+<p class="note">Se actualiza sola cuando se publican cambios en la app (GitHub tarda 1 o 2 minutos en publicarlos).</p>
+
+<script>
+(function () {
+  // Screen size in CSS points (what the app sees as its width and height).
+  var DEVICES = {
+    '15pro':    { w: 393, h: 852, small: false },
+    '15promax': { w: 430, h: 932, small: false },
+    'se':       { w: 375, h: 667, small: true }
+  };
+  var FILES = ['./', 'app.js', 'program.js', 'styles.css', 'manifest.webmanifest'];
+  var POLL_MS = 5000;
+
+  var stage = document.getElementById('stage');
+  var scaler = document.getElementById('scaler');
+  var phone = document.getElementById('phone');
+  var screen = document.getElementById('screen');
+  var frame = document.getElementById('app');
+  var select = document.getElementById('device');
+  var statusEl = document.getElementById('status');
+  var statusText = document.getElementById('statusText');
+  var toast = document.getElementById('toast');
+
+  try { var saved = localStorage.getItem('dryday-preview-device'); if (saved && DEVICES[saved]) select.value = saved; } catch (e) {}
+
+  function layout() {
+    var d = DEVICES[select.value];
+    phone.classList.toggle('small', d.small);
+    screen.style.width = d.w + 'px';
+    screen.style.height = d.h + 'px';
+    var pad = 24;
+    var pw = phone.offsetWidth, ph = phone.offsetHeight;
+    var s = Math.min((stage.clientWidth - pad) / pw, (stage.clientHeight - pad) / ph, 1);
+    scaler.style.transform = 'translate(-50%, -50%) scale(' + Math.max(s, 0.2) + ')';
+  }
+  select.addEventListener('change', function () {
+    try { localStorage.setItem('dryday-preview-device', select.value); } catch (e) {}
+    layout();
+  });
+  window.addEventListener('resize', layout);
+  layout();
+
+  function tick() {
+    var d = new Date();
+    document.getElementById('clock').textContent = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+  tick(); setInterval(tick, 15000);
+
+  function hash(str) {
+    var h = 5381;
+    for (var i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+    return h;
+  }
+  function timeNow() {
+    var d = new Date();
+    return d.toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  // cache: 'reload' fetches a fresh copy and also refreshes the browser cache,
+  // so when the frame reloads it gets the new files, not old saved ones.
+  function snapshot() {
+    return Promise.all(FILES.map(function (f) {
+      return fetch(f, { cache: 'reload' }).then(function (r) { return r.ok ? r.text() : ''; });
+    })).then(function (texts) { return texts.map(hash).join('.'); });
+  }
+
+  var last = null;
+  function check() {
+    if (document.hidden) return;
+    snapshot().then(function (sig) {
+      statusEl.className = 'status';
+      if (last !== null && sig !== last) {
+        statusText.textContent = 'Cargando cambios…';
+        statusEl.className = 'status busy';
+        frame.contentWindow.location.reload();
+        toast.classList.add('show');
+        setTimeout(function () { toast.classList.remove('show'); }, 2600);
+      }
+      last = sig;
+      statusText.textContent = 'En vivo · revisado ' + timeNow();
+    }).catch(function () {
+      statusEl.className = 'status off';
+      statusText.textContent = 'Sin conexión · reintentando';
+    });
+  }
+  frame.addEventListener('load', function () { if (last !== null) { statusEl.className = 'status'; } });
+  check();
+  setInterval(check, POLL_MS);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
+
+  document.getElementById('reload').addEventListener('click', function () {
+    snapshot().then(function (sig) { last = sig; }).catch(function () {}).then(function () {
+      frame.contentWindow.location.reload();
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -48,6 +48,8 @@ self.addEventListener('fetch', (event) => {
   const isFont = url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
   if (!sameOrigin && !isFont) return;
   if (sameOrigin && url.pathname.includes('/api/')) return;
+  // The iPhone preview page (preview.html) is a dev tool: never cache it as the app page.
+  if (sameOrigin && url.pathname.endsWith('/preview.html')) return;
 
   // Fonts: cache first (they don't change).
   if (isFont) {
