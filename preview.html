@@ -90,6 +90,7 @@
     padding: 4px 30px 0 44px;
     font: 600 17px/1 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
     color: #111; background: #fff;
+    transition: background-color .2s, color .2s;
   }
   .phone.small .statusbar { height: 20px; padding: 0 8px; font-size: 12px; }
   .phone.land .statusbar { display: none; }
@@ -98,9 +99,9 @@
   .landisland { display: none; position: absolute; left: 11px; top: 50%; width: 37px; height: 126px; margin-top: -63px; border-radius: 20px; background: #000; z-index: 3; }
   .phone.land .landisland { display: block; }
   .sb-icons { display: inline-flex; gap: 6px; align-items: center; }
-  .batt { width: 27px; height: 13px; border: 1.5px solid rgba(17, 17, 17, .45); border-radius: 4.5px; padding: 1.5px; position: relative; }
-  .batt::before { content: ""; display: block; height: 100%; width: 85%; background: #111; border-radius: 2px; }
-  .batt::after { content: ""; position: absolute; right: -4px; top: 3.5px; width: 2px; height: 4px; border-radius: 0 2px 2px 0; background: rgba(17, 17, 17, .45); }
+  .batt { width: 27px; height: 13px; border: 1.5px solid currentColor; opacity: .9; border-radius: 4.5px; padding: 1.5px; position: relative; }
+  .batt::before { content: ""; display: block; height: 100%; width: 85%; background: currentColor; border-radius: 2px; }
+  .batt::after { content: ""; position: absolute; right: -4px; top: 3.5px; width: 2px; height: 4px; border-radius: 0 2px 2px 0; background: currentColor; }
   iframe { border: 0; display: block; width: 100%; flex: 1; background: #fff; }
   .home { position: absolute; left: 50%; bottom: 8px; width: 140px; height: 5px; margin-left: -70px; border-radius: 3px; background: rgba(0, 0, 0, .8); pointer-events: none; }
   .phone.small .home { display: none; }
@@ -161,7 +162,7 @@
     <div class="phone" id="phone">
       <span class="btn-side b1"></span><span class="btn-side b2"></span><span class="btn-side b3"></span><span class="btn-side b4"></span>
       <div class="screen" id="screen">
-        <div class="statusbar"><span id="clock">9:41</span><span class="island"></span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1" fill="#111"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="#111"/><rect x="10" y="3" width="3" height="9" rx="1" fill="#111"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#111"/></svg><svg width="17" height="12" viewBox="0 0 17 12" aria-hidden="true"><path d="M8.5 11.5 6.2 9a3.3 3.3 0 0 1 4.6 0zM3.9 6.8a6.5 6.5 0 0 1 9.2 0l-1.2 1.3a4.8 4.8 0 0 0-6.8 0zM1.5 4.4a9.9 9.9 0 0 1 14 0l-1.2 1.2a8.2 8.2 0 0 0-11.6 0z" fill="#111"/></svg><span class="batt"></span></span></div>
+        <div class="statusbar" id="statusbar"><span id="clock">9:41</span><span class="island"></span><span class="sb-icons"><svg width="18" height="12" viewBox="0 0 18 12" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="currentColor"/><rect x="10" y="3" width="3" height="9" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg><svg width="17" height="12" viewBox="0 0 17 12" aria-hidden="true"><path d="M8.5 11.5 6.2 9a3.3 3.3 0 0 1 4.6 0zM3.9 6.8a6.5 6.5 0 0 1 9.2 0l-1.2 1.3a4.8 4.8 0 0 0-6.8 0zM1.5 4.4a9.9 9.9 0 0 1 14 0l-1.2 1.2a8.2 8.2 0 0 0-11.6 0z" fill="currentColor"/></svg><span class="batt"></span></span></div>
         <span class="landisland"></span>
         <iframe id="app" title="App DryDay" src="./"></iframe>
         <div class="home"></div>
@@ -272,6 +273,38 @@
       frame.contentWindow.location.reload();
     });
   });
+  // Paint the status bar with the color at the top of the app, like iOS does.
+  var statusbar = document.getElementById('statusbar');
+  var lastTop = '';
+  function firstColor(str) { var m = /rgba?\([^)]*\)/.exec(str || ''); return m ? m[0] : null; }
+  function isClear(c) { return !c || c === 'transparent' || /rgba\([^)]*,\s*0\)$/.test(c); }
+  function topColor() {
+    try {
+      var doc = frame.contentDocument, win = frame.contentWindow;
+      if (!doc || !doc.body) return null;
+      var el = doc.elementFromPoint(win.innerWidth / 2, 2);
+      while (el) {
+        var cs = win.getComputedStyle(el);
+        if (!isClear(cs.backgroundColor)) return cs.backgroundColor;
+        var g = firstColor(cs.backgroundImage && cs.backgroundImage !== 'none' ? cs.backgroundImage.replace(/radial-gradient\([^]*?\)\s*,\s*(?=linear)/, '') : '');
+        if (g && !isClear(g)) return g;
+        el = el.parentElement;
+      }
+      return win.getComputedStyle(doc.body).backgroundColor;
+    } catch (e) { return null; }
+  }
+  function paintStatus() {
+    var c = topColor();
+    if (!c || c === lastTop) return;
+    lastTop = c;
+    var n = (c.match(/[\d.]+/g) || [255, 255, 255]).map(Number);
+    var lum = (0.299 * n[0] + 0.587 * n[1] + 0.114 * n[2]) / 255;
+    statusbar.style.backgroundColor = c;
+    statusbar.style.color = lum < 0.6 ? '#fff' : '#111';
+  }
+  setInterval(paintStatus, 400);
+  frame.addEventListener('load', function () { lastTop = ''; paintStatus(); });
+
   document.getElementById('home').addEventListener('click', function () {
     frame.src = './';
   });

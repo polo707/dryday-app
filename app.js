@@ -133,6 +133,8 @@
   }
 
   // DOM Elements
+  const screenWelcome = document.getElementById('screen-welcome');
+  let welcomeDone = false; // the welcome screen shows once each time the app opens, until the program is unlocked
   const screenAccess = document.getElementById('screen-access');
   const screenDisclaimer = document.getElementById('screen-disclaimer');
   const appShell = document.getElementById('app-shell');
@@ -167,7 +169,15 @@
   }
 
   function renderEntryFlow() {
+    if (screenWelcome) screenWelcome.hidden = true;
     if (!state.unlocked) {
+      if (screenWelcome && !welcomeDone) {
+        screenWelcome.hidden = false;
+        screenAccess.hidden = true;
+        screenDisclaimer.hidden = true;
+        appShell.hidden = true;
+        return;
+      }
       screenAccess.hidden = false;
       screenDisclaimer.hidden = true;
       appShell.hidden = true;
@@ -2488,6 +2498,16 @@
   }
 
   function bindEvents() {
+    ['btn-welcome-start', 'btn-welcome-heart'].forEach((id) => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        welcomeDone = true;
+        renderEntryFlow();
+        window.scrollTo(0, 0);
+      });
+    });
+
     if (accessForm) {
       accessForm.addEventListener('submit', (e) => {
         e.preventDefault();

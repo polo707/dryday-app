@@ -71,6 +71,45 @@
     </div>
 
     <!-- ==========================================
+         WELCOME SCREEN (first thing people see)
+         ========================================== -->
+    <section id="screen-welcome" class="welcome-screen" aria-labelledby="welcome-title" hidden>
+      <div class="welcome-logo">
+        <span class="welcome-logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 34s-12-7.4-15.3-15C2.4 13.6 5.7 7.6 11.5 7.6c3.4 0 5.6 1.8 7 4 .5.8 1.5.8 2 0 1.4-2.2 3.6-4 7-4 5.8 0 9.1 6 6.8 11.4C31 26.6 20 34 20 34z"/><path d="M20 15.5c-1.6 2.6-4 4.8-4 7.4a4 4 0 0 0 8 0c0-2.6-2.4-4.8-4-7.4z" fill="currentColor" stroke="none"/></svg>
+        </span>
+        <span class="welcome-logo-text"><strong>DryDay</strong><small>Bladder care</small></span>
+      </div>
+
+      <div class="welcome-visual" aria-hidden="true">
+        <img id="welcome-art" class="welcome-art" src="" alt="" hidden />
+        <svg class="welcome-art-placeholder" id="welcome-art-placeholder" viewBox="0 0 300 300">
+          <defs>
+            <radialGradient id="wg-glow" cx="50%" cy="48%" r="50%"><stop offset="0" stop-color="#FF9FBF" stop-opacity=".55"/><stop offset=".55" stop-color="#C2557A" stop-opacity=".18"/><stop offset="1" stop-color="#C2557A" stop-opacity="0"/></radialGradient>
+            <linearGradient id="wg-drop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE3EC"/><stop offset=".6" stop-color="#F2A7C0"/><stop offset="1" stop-color="#C2557A"/></linearGradient>
+          </defs>
+          <circle cx="150" cy="150" r="150" fill="url(#wg-glow)"/>
+          <circle cx="150" cy="160" r="92" fill="none" stroke="#F2A7C0" stroke-opacity=".22" stroke-width="1.5"/>
+          <circle cx="150" cy="160" r="122" fill="none" stroke="#F2A7C0" stroke-opacity=".12" stroke-width="1.5"/>
+          <path d="M150 62c-14 26-44 50-44 82a44 44 0 0 0 88 0c0-32-30-56-44-82z" fill="url(#wg-drop)" opacity=".92"/>
+          <path d="M131 150a20 20 0 0 0 16 24" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="5" stroke-linecap="round"/>
+        </svg>
+        <svg class="welcome-wave" viewBox="0 0 400 80" preserveAspectRatio="none">
+          <path d="M0 44 C40 44 50 30 80 30 S120 58 150 58 S185 22 200 22 S235 62 260 62 S300 34 330 34 S370 44 400 44" fill="none" stroke="#FFC2D4" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="welcome-copy">
+        <h1 id="welcome-title" class="welcome-title">Your Daily Confidence Starts <span>Today</span></h1>
+        <p class="welcome-sub">Gentle pelvic floor training for women 40+.<br />Just 5 minutes a day.</p>
+        <div class="welcome-actions">
+          <button type="button" id="btn-welcome-start" class="welcome-cta"><span>Get Started</span><span aria-hidden="true">→</span></button>
+          <button type="button" id="btn-welcome-heart" class="welcome-round" aria-label="Get started"><svg class="ico" aria-hidden="true"><use href="#i-heart"/></svg></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
          GATE 1: ACCESS CODE SCREEN (First Launch)
          ========================================== -->
     <section id="screen-access" class="gate-screen" aria-labelledby="access-title">
