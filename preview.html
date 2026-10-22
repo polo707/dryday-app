@@ -153,6 +153,9 @@
         <button type="button" id="reload" title="Recargar la app" aria-label="Recargar la app">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/></svg>
         </button>
+        <button type="button" id="fresh" title="Empezar de cero (como una persona nueva)" aria-label="Empezar de cero como una persona nueva">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.5"/><path d="M3.5 20a6.5 6.5 0 0 1 10.6-5"/><path d="M19 13.5v7M15.5 17h7"/></svg>
+        </button>
         <button type="button" id="rotate" title="Girar" aria-label="Girar el iPhone">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="8" y="3" width="11" height="18" rx="2.5"/><path d="M4 9v6M2.5 13.5 4 15l1.5-1.5" stroke-linecap="round"/></svg>
         </button>
@@ -254,8 +257,7 @@
       if (last !== null && sig !== last) {
         statusEl.className = 'sub busy';
         frame.contentWindow.location.reload();
-        toast.classList.add('show');
-        setTimeout(function () { toast.classList.remove('show'); }, 2600);
+        showToast('Cambios nuevos cargados');
       }
       last = sig;
       statusText.textContent = 'iOS 26 · en vivo ' + timeNow();
@@ -304,6 +306,25 @@
   }
   setInterval(paintStatus, 400);
   frame.addEventListener('load', function () { lastTop = ''; paintStatus(); });
+
+  function showToast(text) {
+    toast.textContent = text;
+    toast.classList.add('show');
+    setTimeout(function () { toast.classList.remove('show'); }, 2600);
+  }
+
+  // Start over as a brand-new user: erase only what the app saved on this device
+  // (its progress, unlock and settings), keep the simulator's own preferences.
+  document.getElementById('fresh').addEventListener('click', function () {
+    try {
+      var keys = [];
+      for (var i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+      keys.forEach(function (k) { if (k && k.indexOf('dryday-sim-') !== 0) localStorage.removeItem(k); });
+      sessionStorage.clear();
+    } catch (e) {}
+    frame.src = './?fresh=' + Date.now();
+    showToast('Empezando de cero');
+  });
 
   document.getElementById('home').addEventListener('click', function () {
     frame.src = './';
